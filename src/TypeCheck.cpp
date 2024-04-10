@@ -10,6 +10,8 @@ typeMap g_token2Type;
 typeMap funcparam_token2Type;
 vector<typeMap *> local_token2Type;
 typeMap *currScope = &g_token2Type;
+std::unordered_set<string> definedFn;
+
 int scopeLevel = -1;
 // vector<tc_type> retType;
 tc_type retType;
@@ -147,7 +149,12 @@ void check_Prog(std::ostream &out, aA_program p)
         }
         else if (ele->kind == A_programFnDefKind)
         {
+            // notice: distinguish from double def
+            string name = *ele->u.fnDef->fnDecl->id;
+            if (definedFn.find(name) != definedFn.end())
+                error_print(out, ele->u.fnDef->fnDecl->pos, "Function " + name + " is already defined!");
             check_FnDecl(out, ele->u.fnDef->fnDecl);
+            definedFn.insert(name);
         }
     }
 
@@ -210,7 +217,9 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd)
                     return;
                 }
             }
-            (*currScope)[name] = tc_Type(vdecl);
+            tc_type arr_type = tc_Type(vdecl);
+            arr_type->arrayLength = vdecl->u.declArray->len;
+            (*currScope)[name] = arr_type;
             /* fill code here*/
         }
     }
@@ -323,8 +332,9 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd)
                         error_print(out, vdef->pos, "Type mismatch in varDecl!");
                     }
                 }
-
-                (*currScope)[name] = tc_Type(vdef->u.defArray->type, 1);
+                tc_type arr_type = tc_Type(vdef->u.defArray->type, 1);
+                arr_type->arrayLength = len;
+                (*currScope)[name] = arr_type;
             }
             else
             {
@@ -494,8 +504,8 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
     {
         name = *as->leftVal->u.id;
         actual_type = find(out, name, as->pos, false);
-        if (!actual_type || actual_type->isVarArrFunc != 0)
-            error_print(out, as->pos, "cannot assign a value to function/array " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + ".");
+        if (!actual_type || actual_type->isVarArrFunc == 2)
+            error_print(out, as->pos, "cannot assign a value to function " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + ".");
         if (as->rightVal->kind == A_boolExprValKind)
         {
             check_BoolExpr(out, as->rightVal->u.boolExpr);
@@ -504,19 +514,25 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
                 assign_type(name, bool_type(as->pos));
             }
             if (comp_tc_type(bool_type(as->pos), actual_type) == false)
-                error_print(out, as->pos, "Type mismatch in assignment!");
+                error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(bool_type(as->pos)));
         }
         else if (as->rightVal->kind == A_arithExprValKind)
         {
+
             deduced_type = check_ArithExpr(out, as->rightVal->u.arithExpr);
-            if (!actual_type)
+            if (!actual_type || !actual_type->type)
             {
                 assign_type(name, deduced_type);
             }
             else if (comp_tc_type(deduced_type, actual_type) == false)
             {
-                error_print(out, as->pos, "Type mismatch in assignment!");
+                error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
             }
+            // else if (actual_type->isVarArrFunc == 1)
+            // {
+            //     if (actual_type->arrayLength != deduced_type->arrayLength)
+            //         error_print(out, as->pos, "cannot assign due to array length mismatch: " + std::to_string(actual_type->arrayLength) + "!=" + std::to_string(deduced_type->arrayLength));
+            // }
         }
         else
         {
@@ -540,14 +556,14 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
         {
             check_BoolExpr(out, as->rightVal->u.boolExpr);
             if (comp_tc_type(bool_type(as->pos), actual_type) == false)
-                error_print(out, as->pos, "Type mismatch in assignment!");
+                error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(bool_type(as->pos)));
         }
         else if (as->rightVal->kind == A_arithExprValKind)
         {
             deduced_type = check_ArithExpr(out, as->rightVal->u.arithExpr);
             if (comp_tc_type(deduced_type, actual_type) == false)
             {
-                error_print(out, as->pos, "Type mismatch in assignment!");
+                error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
             }
         }
         else
@@ -564,7 +580,7 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
         {
             check_BoolExpr(out, as->rightVal->u.boolExpr);
             if (comp_tc_type(bool_type(as->pos), actual_type) == false)
-                error_print(out, as->pos, "Type mismatch in assignment!");
+                error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(bool_type(as->pos)));
         }
         else if (as->rightVal->kind == A_arithExprValKind)
         {
@@ -572,7 +588,7 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
             deduced_type->isVarArrFunc = 0;
             if (comp_tc_type(deduced_type, actual_type) == false)
             {
-                error_print(out, as->pos, "Type mismatch in assignment!");
+                error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
             }
         }
         else
@@ -603,7 +619,7 @@ void check_ArrayExpr(std::ostream &out, aA_arrayExpr ae)
     // check index
     if (ae->idx->kind == A_numIndexKind)
     {
-        if (arrType->arrayLength <= ae->idx->u.num && ae->idx->u.num < 0)
+        if (arrType->arrayLength <= ae->idx->u.num || ae->idx->u.num < 0)
         {
             error_print(out, ae->pos, "Array index out of bound!");
         }
@@ -611,7 +627,9 @@ void check_ArrayExpr(std::ostream &out, aA_arrayExpr ae)
     else if (ae->idx->kind == A_idIndexKind)
     {
         tc_type type = find(out, *ae->idx->u.id, ae->pos, false);
-        if (type->type->type != A_dataType::A_nativeTypeKind || type->type->u.nativeType != A_nativeType::A_intTypeKind)
+        if (type->isVarArrFunc != 0 ||
+            type->type->type != A_dataType::A_nativeTypeKind ||
+            type->type->u.nativeType != A_nativeType::A_intTypeKind)
             error_print(out, ae->pos, "Array index should be int!");
     }
 
@@ -937,7 +955,7 @@ void assign_type(std::string name, tc_type t)
     // {
     if (g_token2Type.find(name) == g_token2Type.end())
     {
-        for (int j = 0; j < scopeLevel; j++)
+        for (int j = 0; j <= scopeLevel; j++)
         {
             auto i = local_token2Type[j];
             if (i->find(name) != i->end())
@@ -958,24 +976,25 @@ tc_type bool_type(A_pos pos)
     return tc_Type(new aA_type_{pos, A_dataType::A_nativeTypeKind, A_nativeType::A_intTypeKind}, 0);
 }
 
-void print_type(tc_type type)
+string get_type(tc_type type)
 {
     if (!type)
-        return;
+        return "";
+    string ret = "";
     switch (type->type->type)
     {
     case A_dataType::A_nativeTypeKind:
         switch (type->type->u.nativeType)
         {
         case A_nativeType::A_intTypeKind:
-            std::cout << "int";
+            ret += "int";
             break;
         default:
             break;
         }
         break;
     case A_dataType::A_structTypeKind:
-        std::cout << *(type->type->u.structType);
+        ret += *(type->type->u.structType);
         break;
     default:
         break;
@@ -983,14 +1002,19 @@ void print_type(tc_type type)
     switch (type->isVarArrFunc)
     {
     case 0:
-        std::cout << " scalar";
+        ret += " scalar";
         break;
     case 1:
-        std::cout << " array";
+        ret += " array";
         break;
     case 2:
-        std::cout << " function";
+        ret += " function";
         break;
     }
-    std::cout << std::endl;
+    return ret;
+}
+
+void print_type(tc_type type)
+{
+    std::cout << get_type(type) << std::endl;
 }

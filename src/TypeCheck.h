@@ -7,6 +7,7 @@
 #include "TeaplAst.h"
 #include "TeaplaAst.h"
 #include <unordered_map>
+#include <unordered_set>
 
 // token id to token type, including function name to return type
 typedef struct tc_type_ *tc_type;
@@ -38,6 +39,7 @@ tc_type find(std::ostream &out, std::string name, A_pos pos, bool needed = true)
 void assign_type(std::string name, tc_type t);
 tc_type bool_type(A_pos pos);
 void print_type(tc_type type);
+string get_type(tc_type type);
 
 struct tc_type_
 {
