@@ -37,6 +37,7 @@ void check_ReturnStmt(std::ostream &out, aA_returnStmt rs);
 tc_type find(std::ostream &out, std::string name, A_pos pos, bool needed = true);
 void assign_type(std::string name, tc_type t);
 tc_type bool_type(A_pos pos);
+void print_type(tc_type type);
 
 struct tc_type_
 {

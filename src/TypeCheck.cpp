@@ -11,7 +11,8 @@ typeMap funcparam_token2Type;
 vector<typeMap *> local_token2Type;
 typeMap *currScope = &g_token2Type;
 int scopeLevel = -1;
-vector<tc_type> retType;
+// vector<tc_type> retType;
+tc_type retType;
 
 paramMemberMap func2Param;
 paramMemberMap struct2Members;
@@ -424,7 +425,8 @@ void check_FnDef(std::ostream &out, aA_fnDef fd)
         funcparam_token2Type[name] = tc_Type(vd);
     }
     /* fill code here */
-    retType.push_back(g_token2Type[*fd->fnDecl->id]);
+    retType = tc_Type(fd->fnDecl->type, 2);
+    // retType.push_back(g_token2Type[*fd->fnDecl->id]);
 
     /* fill code here */
     for (aA_codeBlockStmt stmt : fd->stmts)
@@ -530,9 +532,10 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
         // really?
         name = *as->leftVal->u.arrExpr->arr->u.id;
         check_ArrayExpr(out, as->leftVal->u.arrExpr);
-        actual_type = find(out, name, as->pos, false);
 
+        actual_type = find(out, name, as->pos, false);
         actual_type->isVarArrFunc = 0;
+
         if (as->rightVal->kind == A_boolExprValKind)
         {
             check_BoolExpr(out, as->rightVal->u.boolExpr);
@@ -566,6 +569,7 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
         else if (as->rightVal->kind == A_arithExprValKind)
         {
             deduced_type = check_ArithExpr(out, as->rightVal->u.arithExpr);
+            deduced_type->isVarArrFunc = 0;
             if (comp_tc_type(deduced_type, actual_type) == false)
             {
                 error_print(out, as->pos, "Type mismatch in assignment!");
@@ -627,14 +631,13 @@ tc_type check_MemberExpr(std::ostream &out, aA_memberExpr me)
     tc_type structType = find(out, name, me->pos, false);
     // if (structType->type->u.nativeType == A_nativeType::A_intTypeKind)
     //     error_print(out, me->pos, "error Here");
-    // std::cout << std::endl
-    //           << std::endl
-    //           << *structType->type->u.structType;
-    auto members = *struct2Members[*structType->type->u.structType];
+    if (structType->type->type != A_dataType::A_structTypeKind)
+        error_print(out, me->pos, name + " is not a struct.");
+    auto members = struct2Members[*structType->type->u.structType];
 
     /* fill code here */
     // check member name
-    for (const auto &i : members)
+    for (const auto &i : *members)
     {
         if (*i->u.declScalar->id == member)
         {
@@ -701,15 +704,15 @@ void check_BoolUnit(std::ostream &out, aA_boolUnit bu)
         {
             if (a->type->type == A_dataType::A_structTypeKind && b->type->type == A_dataType::A_structTypeKind)
             {
-                error_print(out, bu->pos, *a->type->u.structType + " is not comparable with " + *b->type->u.structType);
+                error_print(out, bu->pos, *a->type->u.structType + " is not comparable with " + *b->type->u.structType + ".");
             }
             else if (a->type->type == A_dataType::A_structTypeKind)
             {
-                error_print(out, bu->pos, *a->type->u.structType + " is not comparable with int");
+                error_print(out, bu->pos, *a->type->u.structType + " is not comparable with int.");
             }
             else if (b->type->type == A_dataType::A_structTypeKind)
             {
-                error_print(out, bu->pos, *b->type->u.structType + " is not comparable with int");
+                error_print(out, bu->pos, *b->type->u.structType + " is not comparable with int.");
             }
             else
             {
@@ -878,8 +881,8 @@ void check_ReturnStmt(std::ostream &out, aA_returnStmt rs)
 {
     if (!rs)
         return;
-    // ret_type = retType.pop_back();
-    auto ret_type = retType.back();
+    auto ret_type = retType;
+    // auto ret_type = retType.back();
     if (rs->retVal->kind == A_arithExprValKind)
     {
         if (!comp_tc_type(check_ArithExpr(out, rs->retVal->u.arithExpr), ret_type))
@@ -953,4 +956,41 @@ void assign_type(std::string name, tc_type t)
 tc_type bool_type(A_pos pos)
 {
     return tc_Type(new aA_type_{pos, A_dataType::A_nativeTypeKind, A_nativeType::A_intTypeKind}, 0);
+}
+
+void print_type(tc_type type)
+{
+    if (!type)
+        return;
+    switch (type->type->type)
+    {
+    case A_dataType::A_nativeTypeKind:
+        switch (type->type->u.nativeType)
+        {
+        case A_nativeType::A_intTypeKind:
+            std::cout << "int";
+            break;
+        default:
+            break;
+        }
+        break;
+    case A_dataType::A_structTypeKind:
+        std::cout << *(type->type->u.structType);
+        break;
+    default:
+        break;
+    }
+    switch (type->isVarArrFunc)
+    {
+    case 0:
+        std::cout << " scalar";
+        break;
+    case 1:
+        std::cout << " array";
+        break;
+    case 2:
+        std::cout << " function";
+        break;
+    }
+    std::cout << std::endl;
 }
