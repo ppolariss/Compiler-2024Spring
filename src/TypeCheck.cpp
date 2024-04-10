@@ -91,11 +91,16 @@ bool comp_aA_type(aA_type target, aA_type t)
         if (target->u.nativeType != t->u.nativeType)
             return false;
     if (target->type == A_dataType::A_structTypeKind)
-        if (target->u.structType != t->u.structType)
+        // if (target->u.structType != t->u.structType)
+        if (*target->u.structType != *t->u.structType)
+        {
+            std::cout << "HERE" << *target->u.structType << *t->u.structType << std::endl;
             return false;
+        }
     return true;
 }
 
+// cannot assign scalar(t) to array(target)
 bool comp_tc_type(tc_type target, tc_type t)
 {
     if (!target || !t)
@@ -104,6 +109,8 @@ bool comp_tc_type(tc_type target, tc_type t)
     // arr kind first
     if (target->isVarArrFunc && t->isVarArrFunc == 0)
         return false;
+    // if (target->isVarArrFunc != t->isVarArrFunc)
+        // return false;
 
     // if target type is nullptr, alwayse ok
     return comp_aA_type(target->type, t->type);
@@ -487,6 +494,10 @@ void check_CodeblockStmt(std::ostream &out, aA_codeBlockStmt cs)
     if (--scopeLevel < 0)
         currScope = &g_token2Type;
     currScope = local_token2Type[scopeLevel];
+    if (local_token2Type.size() > scopeLevel + 2)
+    {
+        local_token2Type.pop_back();
+    }
     return;
 }
 
@@ -518,13 +529,13 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
         }
         else if (as->rightVal->kind == A_arithExprValKind)
         {
-
             deduced_type = check_ArithExpr(out, as->rightVal->u.arithExpr);
+
             if (!actual_type || !actual_type->type)
             {
                 assign_type(name, deduced_type);
             }
-            else if (comp_tc_type(deduced_type, actual_type) == false)
+            else if (comp_tc_type(actual_type, deduced_type) == false)
             {
                 error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
             }
@@ -586,6 +597,7 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
         {
             deduced_type = check_ArithExpr(out, as->rightVal->u.arithExpr);
             deduced_type->isVarArrFunc = 0;
+            print_type(deduced_type);
             if (comp_tc_type(deduced_type, actual_type) == false)
             {
                 error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
@@ -978,7 +990,7 @@ tc_type bool_type(A_pos pos)
 
 string get_type(tc_type type)
 {
-    if (!type)
+    if (!type || !type->type)
         return "";
     string ret = "";
     switch (type->type->type)
