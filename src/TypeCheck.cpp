@@ -9,7 +9,8 @@ typeMap g_token2Type;
 // local token ids to type, since func param can override global param
 typeMap funcparam_token2Type;
 vector<typeMap *> local_token2Type;
-typeMap& currScope = g_token2Type;
+typeMap *currScope = &g_token2Type;
+int scopeLevel = -1;
 
 paramMemberMap func2Param;
 paramMemberMap struct2Members;
@@ -191,7 +192,7 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd)
                 }
             }
             // whether global or local??
-            g_token2Type[name] = tc_Type(vdecl);
+            (*currScope)[name] = tc_Type(vdecl);
             /* fill code here*/
         }
         else if (vdecl->kind == A_varDeclType::A_varDeclArrayKind)
@@ -207,7 +208,7 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd)
                     return;
                 }
             }
-            g_token2Type[name] = tc_Type(vdecl);
+            (*currScope)[name] = tc_Type(vdecl);
             /* fill code here*/
         }
     }
@@ -229,7 +230,7 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd)
                         error_print(out, vdef->pos, "This struct is not defined!");
                         return;
                     }
-                    g_token2Type[name] = tc_Type(vdef->u.defScalar->type, 0);
+                    (*currScope)[name] = tc_Type(vdef->u.defScalar->type, 0);
                     // check right
                 }
                 else if (vdef->u.defScalar->type->type == A_nativeTypeKind)
@@ -255,7 +256,7 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd)
                         }
                     }
                     // check type
-                    g_token2Type[name] = tmp_type;
+                    (*currScope)[name] = tmp_type;
                 }
                 else
                 {
@@ -267,12 +268,12 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd)
                 if (vdef->u.defScalar->val->kind == A_arithExprValKind)
                 {
                     // vdef->u.defScalar->type == nullptr;
-                    g_token2Type[name] = check_ArithExpr(out, vdef->u.defScalar->val->u.arithExpr);
+                    (*currScope)[name] = check_ArithExpr(out, vdef->u.defScalar->val->u.arithExpr);
                 }
                 else if (vdef->u.defScalar->val->kind == A_boolExprValKind)
                 {
                     check_BoolExpr(out, vdef->u.defScalar->val->u.boolExpr);
-                    g_token2Type[name] = bool_type(vdef->pos);
+                    (*currScope)[name] = bool_type(vdef->pos);
                 }
                 else
                 {
@@ -321,8 +322,7 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd)
                     }
                 }
 
-                g_token2Type[name] = tc_Type(vdef->u.defArray->type, 1);
-                ;
+                (*currScope)[name] = tc_Type(vdef->u.defArray->type, 1);
             }
             else
             {
@@ -442,6 +442,9 @@ void check_CodeblockStmt(std::ostream &out, aA_codeBlockStmt cs)
 {
     if (!cs)
         return;
+    std::cout << "\nnow it's " << scopeLevel + 1;
+    local_token2Type.push_back(new typeMap);
+    currScope = local_token2Type[++scopeLevel];
     // variables declared in a code block should not duplicate with outer ones.
     switch (cs->kind)
     {
@@ -466,6 +469,10 @@ void check_CodeblockStmt(std::ostream &out, aA_codeBlockStmt cs)
     default:
         break;
     }
+    local_token2Type.pop_back();
+    if (--scopeLevel < 0)
+        currScope = &g_token2Type;
+    currScope = local_token2Type[scopeLevel];
     return;
 }
 
@@ -504,9 +511,10 @@ void check_ArrayExpr(std::ostream &out, aA_arrayExpr ae)
         return;
     string name = *ae->arr->u.id;
     // check array name
-    if (g_token2Type.find(name) == g_token2Type.end())
-        error_print(out, ae->pos, "This id is not defined!");
-    tc_type arrType = g_token2Type[name];
+    // if ( == nullptr)
+    //     error_print(out, ae->pos, "This id is not defined!");
+
+    tc_type arrType = find(out, name, ae->pos, false);
     if (arrType->isVarArrFunc != 1)
         error_print(out, ae->pos, "This id is not an array!");
     /* fill code here */
@@ -781,7 +789,7 @@ void check_ReturnStmt(std::ostream &out, aA_returnStmt rs)
     return;
 }
 
-tc_type find(std::ostream &out, std::string name, A_pos pos, bool needed)
+tc_type find(std::ostream &out, std::string name, A_pos pos, bool expected_available)
 {
     if (funcparam_token2Type.find(name) == funcparam_token2Type.end())
     {
@@ -790,19 +798,19 @@ tc_type find(std::ostream &out, std::string name, A_pos pos, bool needed)
             for (auto i : local_token2Type)
                 if (i->find(name) != i->end())
                 {
-                    if (needed)
+                    if (expected_available)
                         error_print(out, pos, "local variables dplicates with global variables.");
                     return i->at(name);
                 }
-            if (!needed)
+            if (!expected_available)
                 error_print(out, pos, "This id is not defined!");
             return nullptr;
         }
-        if (needed)
+        if (expected_available)
             error_print(out, pos, "local variables dplicates with global variables.");
         return g_token2Type[name];
     }
-    if (needed)
+    if (expected_available)
         error_print(out, pos, "local variables dplicates with function params.");
     return funcparam_token2Type[name];
 }
