@@ -550,6 +550,10 @@ CodeBlockStmt: VarDeclStmt
 {
   $$ = A_BlockNullStmt($1);
 }
+|
+{
+  $$ = nullptr;
+}
 ;
 
 ReturnStmt: RET RightVal SEMICOLON

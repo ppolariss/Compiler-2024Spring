@@ -95,7 +95,7 @@ bool comp_aA_type(aA_type target, aA_type t)
             return false;
     if (target->type == A_dataType::A_structTypeKind)
         // if (target->u.structType != t->u.structType)
-        if (target->u.structType || t->u.structType || *target->u.structType != *t->u.structType)
+        if (!target->u.structType || !t->u.structType || *target->u.structType != *t->u.structType)
         {
             // std::cout << "HERE" << *target->u.structType << *t->u.structType << std::endl;
             return false;
@@ -127,6 +127,7 @@ tc_type tc_Type(aA_type t, uint isVarArrFunc)
     tc_type ret = new tc_type_;
     ret->type = t;
     ret->isVarArrFunc = isVarArrFunc;
+    ret->arrayLength = 0;
     return ret;
 }
 
@@ -222,7 +223,8 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd)
             name = *vdecl->u.declArray->id;
             if (find(out, name, vdecl->pos) != nullptr)
                 return;
-            if (vdecl->u.declArray->type->type == A_structTypeKind)
+            // important: var a[10];
+            if (vdecl->u.declArray->type && vdecl->u.declArray->type->type == A_structTypeKind)
             {
                 if (struct2Members.find(*(vdecl->u.declArray->type->u.structType)) == struct2Members.end())
                 {
@@ -428,6 +430,26 @@ void check_FnDecl(std::ostream &out, aA_fnDecl fd)
     }
     else
     {
+        // check struct type
+        for (const auto &i : fd->paramDecl->varDecls)
+        {
+            if (i->kind == A_varDeclScalarKind && i->u.declScalar && i->u.declScalar->type && i->u.declScalar->type->type == A_structTypeKind && i->u.declScalar->type->u.structType)
+            {
+                if (struct2Members.find(*(i->u.declScalar->type->u.structType)) == struct2Members.end())
+                {
+                    error_print(out, i->pos, "function parameter's struct type is not defined!");
+                    return;
+                }
+            }
+        }
+        if (fd->type && fd->type->type == A_dataType::A_structTypeKind && fd->type->u.structType)
+        {
+            if (struct2Members.find(*(fd->type->u.structType)) == struct2Members.end())
+            {
+                error_print(out, fd->pos, "function return type's struct type is not defined!");
+                return;
+            }
+        }
         func2Param[name] = &(fd->paramDecl->varDecls);
         g_token2Type[name] = tc_Type(fd->type, 2);
         // if not defined
@@ -534,6 +556,7 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
     case A_leftValType::A_varValKind:
     {
         name = *as->leftVal->u.id;
+        // std::cout << name << std::endl;
         actual_type = find(out, name, as->pos, false);
         if (!actual_type)
             error_print(out, as->pos, "cannot assign value to undeclared variable " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + ".");
@@ -545,6 +568,8 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
             check_BoolExpr(out, as->rightVal->u.boolExpr);
             if (!actual_type)
             {
+                if (actual_type->isVarArrFunc == 1)
+                    error_print(out, as->pos, "cannot assign a value to array " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + ".");
                 assign_type(name, bool_type(as->pos));
             }
             if (comp_tc_type(bool_type(as->pos), actual_type) == false)
@@ -559,6 +584,8 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
             // !actual_type ||
             if (!actual_type->type)
             {
+                if (actual_type->isVarArrFunc != deduced_type->isVarArrFunc)
+                    error_print(out, as->pos, "cannot assign a value to " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + ".");
                 assign_type(name, deduced_type);
             }
             else if (comp_tc_type(actual_type, deduced_type) == false)
