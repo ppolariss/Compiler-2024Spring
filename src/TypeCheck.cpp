@@ -597,7 +597,6 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
         {
             deduced_type = check_ArithExpr(out, as->rightVal->u.arithExpr);
             deduced_type->isVarArrFunc = 0;
-            print_type(deduced_type);
             if (comp_tc_type(deduced_type, actual_type) == false)
             {
                 error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
