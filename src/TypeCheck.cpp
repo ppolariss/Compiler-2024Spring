@@ -81,7 +81,8 @@ void print_token_maps()
         print_token_map(i);
     }
     std::cout << "currScope:" << std::endl;
-    print_token_map(currScope);
+    if (currScope)
+        print_token_map(currScope);
 }
 
 bool comp_aA_type(aA_type target, aA_type t)
@@ -197,36 +198,48 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd)
     string name;
     if (vd->kind == A_varDeclStmtType::A_varDeclKind)
     {
-        // decl only
         aA_varDecl vdecl = vd->u.varDecl;
+        if (!vdecl)
+            error_print(out, vd->pos, "aA_varDeclStmt->u.varDecl is null");
         if (vdecl->kind == A_varDeclType::A_varDeclScalarKind)
         {
+            // decl only
+            if (!vdecl->u.declScalar->id)
+                error_print(out, vdecl->pos, "vdecl->u.declScalar->id is null");
             name = *vdecl->u.declScalar->id;
 
             find(out, name, vdecl->pos);
+
             // let a;
-            if (vdecl->u.declScalar->type)
-                if (vdecl->u.declScalar->type->type == A_structTypeKind)
+            if (vdecl->u.declScalar->type && vdecl->u.declScalar->type->type == A_structTypeKind)
+            {
+                string *struct_type = vdecl->u.declScalar->type->u.structType;
+                if (!struct_type)
+                    error_print(out, vdecl->pos, "This struct is not defined!");
+                if (struct2Members.find(*struct_type) == struct2Members.end())
                 {
-                    if (struct2Members.find(*(vdecl->u.declScalar->type->u.structType)) == struct2Members.end())
-                    {
-                        error_print(out, vdecl->pos, "This struct is not defined!");
-                        return;
-                    }
+                    error_print(out, vdecl->pos, "This struct is not defined!");
+                    return;
                 }
+            }
             // whether global or local??
             (*currScope)[name] = tc_Type(vdecl);
             /* fill code here*/
         }
         else if (vdecl->kind == A_varDeclType::A_varDeclArrayKind)
         {
+            if (!vdecl->u.declArray->id)
+                error_print(out, vdecl->pos, "vdecl->u.declArray->id is null");
             name = *vdecl->u.declArray->id;
-            if (find(out, name, vdecl->pos) != nullptr)
-                return;
+            find(out, name, vdecl->pos);
+
             // important: var a[10];
             if (vdecl->u.declArray->type && vdecl->u.declArray->type->type == A_structTypeKind)
             {
-                if (struct2Members.find(*(vdecl->u.declArray->type->u.structType)) == struct2Members.end())
+                string *struct_type = vdecl->u.declArray->type->u.structType;
+                if (!struct_type)
+                    error_print(out, vdecl->pos, "This struct is not defined!");
+                if (struct2Members.find(*struct_type) == struct2Members.end())
                 {
                     error_print(out, vdecl->pos, "This struct is not defined!");
                     return;
@@ -240,130 +253,175 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd)
     }
     else if (vd->kind == A_varDeclStmtType::A_varDefKind)
     {
+        if (!vd->u.varDef)
+            error_print(out, vd->pos, "aA_varDeclStmt->u.varDef is null");
         // decl and def
         aA_varDef vdef = vd->u.varDef;
         if (vdef->kind == A_varDefType::A_varDefScalarKind)
         {
+            if (!vdef->u.defScalar)
+                error_print(out, vdef->pos, "vdef->u.defScalar is null");
+            if (!vdef->u.defScalar->id)
+                error_print(out, vdef->pos, "vdef->u.defScalar->id is null");
+            if (!vdef->u.defScalar->val)
+                error_print(out, vdef->pos, "vdef->u.defScalar->val is null");
             name = *vdef->u.defScalar->id;
-            if (find(out, name, vdef->pos) != nullptr)
-                return;
+            find(out, name, vdef->pos);
+
             if (vdef->u.defScalar->type)
             {
                 if (vdef->u.defScalar->type->type == A_structTypeKind)
                 {
-                    if (struct2Members.find(*(vdef->u.defScalar->type->u.structType)) == struct2Members.end())
-                    {
+                    string *struct_type = vdef->u.defScalar->type->u.structType;
+                    if (!struct_type)
                         error_print(out, vdef->pos, "This struct is not defined!");
-                        return;
-                    }
-                    (*currScope)[name] = tc_Type(vdef->u.defScalar->type, 0);
-                    // check right
+                    if (struct2Members.find(*struct_type) == struct2Members.end())
+                        error_print(out, vdef->pos, "This struct is not defined!");
+
+                    // check right type
+                    if (vdef->u.defScalar->val->kind != A_arithExprValKind)
+                        error_print(out, vdef->pos, "there is no right value in varDecl!");
+                    tc_type right_type = check_ArithExpr(out, vdef->u.defScalar->val->u.arithExpr);
+
+                    tc_type left_type = tc_Type(vdef->u.defScalar->type, 0);
+                    if (!comp_tc_type(left_type, right_type))
+                        error_print(out, vdef->pos, "struct type mismatch in varDecl! (decl and def)");
+
+                    (*currScope)[name] = left_type;
                 }
                 else if (vdef->u.defScalar->type->type == A_nativeTypeKind)
                 {
-                    auto tmp_type = tc_Type(vdef->u.defScalar->type, 0);
+                    tc_type left_type = tc_Type(vdef->u.defScalar->type, 0);
 
-                    if (vdef->u.defScalar->val->kind == A_arithExprValKind)
-                    {
-                        if (!comp_tc_type(tmp_type, check_ArithExpr(out, vdef->u.defScalar->val->u.arithExpr)))
-                        {
-                            error_print(out, vdef->pos, "Type mismatch in varDecl!");
-                            return;
-                        }
-                    }
-                    else if (vdef->u.defScalar->val->kind == A_boolExprValKind)
+                    // doesn't need // only int
+                    if (vdef->u.defScalar->val->kind == A_boolExprValKind)
                     {
                         check_BoolExpr(out, vdef->u.defScalar->val->u.boolExpr);
-                        if (comp_tc_type(tmp_type, bool_type(vdef->pos)) == false)
-                        { // only int
+                        if (comp_tc_type(left_type, bool_type(vdef->pos)) == false)
                             error_print(out, vdef->pos, "Type mismatch in varDecl!");
-                            return;
-                        }
                     }
+                    else if (vdef->u.defScalar->val->kind == A_arithExprValKind)
+                    {
+                        tc_type right_type = check_ArithExpr(out, vdef->u.defScalar->val->u.arithExpr);
+                        if (empty_type(right_type))
+                            error_print(out, vdef->pos, "Type mismatch in varDecl!");
+                        if (!comp_tc_type(left_type, right_type))
+                            error_print(out, vdef->pos, "Type mismatch in varDecl!");
+                    }
+                    else
+                        error_print(out, vdef->pos, "Type mismatch in varDecl!");
+
                     // check type
+                    (*currScope)[name] = left_type;
+                }
+                else
+                    error_print(out, vdef->pos, "Type mismatch in varDecl!");
+            }
+            // let a = 1;
+            // vdef->u.defScalar->type == null
+            else
+            {
+                // doesn't need
+                if (vdef->u.defScalar->val->kind == A_boolExprValKind)
+                {
+                    check_BoolExpr(out, vdef->u.defScalar->val->u.boolExpr);
+                    tc_type tmp_type = bool_type(vdef->pos);
+                    if (empty_type(tmp_type))
+                        error_print(out, vdef->pos, "type mismatch in varDecl! (right: bool expr)");
+                    (*currScope)[name] = tmp_type;
+                }
+                else if (vdef->u.defScalar->val->kind == A_arithExprValKind)
+                {
+                    tc_type tmp_type = check_ArithExpr(out, vdef->u.defScalar->val->u.arithExpr);
+                    if (empty_type(tmp_type))
+                        error_print(out, vdef->pos, "cannot assign void value to variable " + name + " on line " + std::to_string(vdef->pos->line) + ", col " + std::to_string(vdef->pos->col) + ".");
                     (*currScope)[name] = tmp_type;
                 }
                 else
-                {
                     error_print(out, vdef->pos, "Type mismatch in varDecl!");
-                }
-            }
-            else // let a = 1;
-            {
-                if (vdef->u.defScalar->val->kind == A_arithExprValKind)
-                {
-                    // vdef->u.defScalar->type == nullptr;
-                    (*currScope)[name] = check_ArithExpr(out, vdef->u.defScalar->val->u.arithExpr);
-                }
-                else if (vdef->u.defScalar->val->kind == A_boolExprValKind)
-                {
-                    check_BoolExpr(out, vdef->u.defScalar->val->u.boolExpr);
-                    (*currScope)[name] = bool_type(vdef->pos);
-                }
-                else
-                {
-                    error_print(out, vdef->pos, "Type mismatch in varDecl!");
-                }
             }
             /* fill code here, allow omited type */
         }
         else if (vdef->kind == A_varDefType::A_varDefArrayKind)
         {
+            // no: let a = {0, 1, 2};
+            // yes: let a[3] = {0, 1, 2};
+            if (!vdef->u.defArray)
+                error_print(out, vdef->pos, "vdef->u.defArray is null");
+            if (!vdef->u.defArray->id)
+                error_print(out, vdef->pos, "vdef->u.defArray->id is null");
             name = *vdef->u.defArray->id;
-            if (find(out, name, vdef->pos) != nullptr)
-                return;
+            find(out, name, vdef->pos);
 
-            if (!vdef->u.defArray->type)
-            {
-                error_print(out, vdef->pos, "Array type should be specified!");
-                return;
-                // TODO: let a = {0, 1, 2}; ??
-                // g_token2Type[name] = tc_Type(new aA_type_{vdef->pos, A_dataType::A_nativeTypeKind, A_nativeType::A_intTypeKind}, 1);
-            }
-
-            // TODO: let a[2]:int = {0, 1, 2};
-            uint len = vdef->u.defArray->len;
-            auto tmp_type = tc_Type(vdef->u.defArray->type, 0);
+            int len = vdef->u.defArray->len;
+            if (len < 0)
+                error_print(out, vdef->pos, "Array length should be positive!");
             if (vdef->u.defArray->vals.size() != len)
-            {
                 error_print(out, vdef->pos, "Array length mismatch!");
+
+            if (empty_type(vdef->u.defArray->type))
+            {
+                tc_type left_type = NULL;
+                for (const auto &i : vdef->u.defArray->vals)
+                {
+                    if (i->kind == A_boolExprValKind)
+                    {
+                        check_BoolExpr(out, i->u.boolExpr);
+                        if (!left_type)
+                        {
+                            left_type = bool_type(vdef->pos);
+                            continue;
+                        }
+                        // only int<-bool
+                        if (comp_tc_type(left_type, bool_type(vdef->pos)) == false)
+                            error_print(out, vdef->pos, "value type aren't consistent in array declaration!");
+                    }
+                    else if (i->kind == A_arithExprValKind)
+                    {
+                        tc_type right_type = check_ArithExpr(out, i->u.arithExpr);
+                        if (!left_type)
+                        {
+                            left_type = right_type;
+                            continue;
+                        }
+                        if (!comp_tc_type(left_type, right_type))
+                            error_print(out, vdef->pos, "value type aren't consistent in array declaration!");
+                    }
+                    else
+                        error_print(out, vdef->pos, "Type mismatch in varDecl!");
+                }
+
+                tc_type arr_type = tc_Type(vdef->u.defArray->type, 1);
+                arr_type->arrayLength = len;
+                (*currScope)[name] = arr_type;
                 return;
             }
+
+            tc_type left_type = tc_Type(vdef->u.defArray->type, 0); // not null
             for (const auto &i : vdef->u.defArray->vals)
             {
-                if (i->kind == A_arithExprValKind)
-                {
-                    if (!comp_tc_type(tmp_type, check_ArithExpr(out, i->u.arithExpr)))
-                    {
-                        error_print(out, vdef->pos, "Type mismatch in varDecl!");
-                        return;
-                    }
-                }
-                else if (i->kind == A_boolExprValKind)
+                if (i->kind == A_boolExprValKind)
                 {
                     check_BoolExpr(out, i->u.boolExpr);
-                    if (comp_tc_type(tmp_type, bool_type(vdef->pos)) == false)
-                    { // only int
-                        error_print(out, vdef->pos, "Type mismatch in varDecl!");
-                        return;
-                    }
+                    if (comp_tc_type(left_type, bool_type(vdef->pos)) == false)
+                        error_print(out, vdef->pos, "array element type conflict with array type!");
+                }
+                else if (i->kind == A_arithExprValKind)
+                {
+                    if (!comp_tc_type(left_type, check_ArithExpr(out, i->u.arithExpr)))
+                        error_print(out, vdef->pos, "array element type conflict with array type!");
                 }
                 else
-                {
                     error_print(out, vdef->pos, "Type mismatch in varDecl!");
-                }
             }
             tc_type arr_type = tc_Type(vdef->u.defArray->type, 1);
             arr_type->arrayLength = len;
             (*currScope)[name] = arr_type;
-
-            // error_print(out, vdef->pos, "Array type should be specified!");
+            return;
             /* fill code here, allow omited type */
         }
         else
-        {
             error_print(out, vdef->pos, "Type mismatch in varDecl!");
-        }
     }
     return;
 }
@@ -372,6 +430,8 @@ void check_StructDef(std::ostream &out, aA_structDef sd)
 {
     if (!sd)
         return;
+    if (!sd->id)
+        error_print(out, sd->pos, "no struct id in struct def");
     string name = *sd->id;
     // if (find(out, name, sd->pos) != nullptr)
     //     return;
@@ -385,37 +445,64 @@ void check_FnDecl(std::ostream &out, aA_fnDecl fd)
 {
     if (!fd)
         return;
+    if (!fd->id)
+        error_print(out, fd->pos, "no function id in function declaration");
     string name = *fd->id;
 
+    // check function param name duplicates
+    if (!fd->paramDecl)
+        error_print(out, fd->pos, "fd->paramDecl is null");
+    std::unordered_set<string> paramSet;
+    for (aA_varDecl vd : fd->paramDecl->varDecls)
+    {
+        if (!vd || !vd->u.declScalar || !vd->u.declScalar->id)
+            error_print(out, fd->pos, "Function parameter is null.");
+
+        string name = *vd->u.declScalar->id;
+        if (paramSet.find(name) != paramSet.end())
+            error_print(out, vd->pos, "Function parameter duplicates with other function parameters.");
+        paramSet.insert(name);
+    }
+    paramSet.clear();
+
     // if already declared, should match
-    // declared before
     if (func2Param.find(name) != func2Param.end())
     {
+        // declared before
         tc_type declaredType = g_token2Type[name];
-        // print_type(g_token2Type[name]);
-        // todo
 
-        if (fd->type)
+        if (!declaredType)
+            error_print(out, fd->pos, "Function declared?");
+
+        // is function ret val matches
+        /* fill code here */
+        if (empty_type(declaredType) && empty_type(fd->type))
+            ;
+        else if (empty_type(declaredType))
+            error_print(out, fd->pos, "void function " + name + " should not have return value.");
+        else if (empty_type(fd->type))
         {
-            if (!declaredType || comp_tc_type(declaredType, tc_Type(fd->type, 2)) == false)
-            {
-                if (declaredType && declaredType->type && declaredType->type->pos)
-                    error_print(out, fd->pos, "Function definition on line " + std::to_string(fd->pos->line) + " doesn't match the declaration on line " + std::to_string(declaredType->type->pos->line) + ".");
-                else
-                    error_print(out, fd->pos, "Function definition on line " + std::to_string(fd->pos->line) + " doesn't match the declaration on line ?.");
-            }
-        }
-        else if (declaredType && declaredType->type)
-        //  (comp_tc_type(declaredType, nullptr) == false)
-        {
+            // error_print(out, fd->pos, "Function " + name + " should have return value.");
+            // error printing maybe encounter segmenation fault
+            // just for print error below
             if (declaredType && declaredType->type && declaredType->type->pos)
                 error_print(out, fd->pos, "Function definition on line " + std::to_string(fd->pos->line) + " doesn't match the declaration on line " + std::to_string(g_token2Type[name]->type->pos->line) + ".");
             else
                 error_print(out, fd->pos, "Function definition on line " + std::to_string(fd->pos->line) + " doesn't match the declaration on line ?.");
         }
+        else if (!comp_tc_type(declaredType, tc_Type(fd->type, 2)))
+        {
+            // just for print error below
+            if (declaredType && declaredType->type && declaredType->type->pos)
+                error_print(out, fd->pos, "Function definition on line " + std::to_string(fd->pos->line) + " doesn't match the declaration on line " + std::to_string(declaredType->type->pos->line) + ".");
+            else
+                error_print(out, fd->pos, "Function definition on line " + std::to_string(fd->pos->line) + " doesn't match the declaration on line ?.");
+        }
 
-        // if (comp_aA_type(g_token2Type[name]->type, fd->type) == false)
-        //     error_print(out, fd->pos, "function definition on line " + std::to_string(fd->pos->line) + " doesn't match the declaration on line " + std::to_string(g_token2Type[name]->type->pos->line) + ".");
+        // is function params matches decl
+        /* fill code here */
+        if (!fd->paramDecl)
+            error_print(out, fd->pos, "Function parameter number mismatch!");
         if (func2Param[name]->size() != fd->paramDecl->varDecls.size())
             error_print(out, fd->pos, "Function parameter number mismatch!");
         for (int i = 0; i < fd->paramDecl->varDecls.size(); i++)
@@ -423,37 +510,24 @@ void check_FnDecl(std::ostream &out, aA_fnDecl fd)
             if (!comp_tc_type(tc_Type(fd->paramDecl->varDecls[i]), tc_Type(func2Param[name]->at(i))))
                 error_print(out, fd->pos, "Function parameter type mismatch!");
         }
-        // is function ret val matches
-        /* fill code here */
-        // is function params matches decl
-        /* fill code here */
     }
     else
     {
+        find(out, name, fd->pos);
+        // if not defined
+        /* filled code here */
+
         // check struct type
         for (const auto &i : fd->paramDecl->varDecls)
         {
-            if (i->kind == A_varDeclScalarKind && i->u.declScalar && i->u.declScalar->type && i->u.declScalar->type->type == A_structTypeKind && i->u.declScalar->type->u.structType)
-            {
-                if (struct2Members.find(*(i->u.declScalar->type->u.structType)) == struct2Members.end())
-                {
-                    error_print(out, i->pos, "function parameter's struct type is not defined!");
-                    return;
-                }
-            }
+            if (i->kind == A_varDeclScalarKind && i->u.declScalar)
+                check_struct_defined(out, i->pos, i->u.declScalar->type, "function parameter's struct type is not defined!");
         }
-        if (fd->type && fd->type->type == A_dataType::A_structTypeKind && fd->type->u.structType)
-        {
-            if (struct2Members.find(*(fd->type->u.structType)) == struct2Members.end())
-            {
-                error_print(out, fd->pos, "function return type's struct type is not defined!");
-                return;
-            }
-        }
+        if (!empty_type(fd->type))
+            check_struct_defined(out, fd->pos, fd->type, "function return type's struct type is not defined!");
+
         func2Param[name] = &(fd->paramDecl->varDecls);
         g_token2Type[name] = tc_Type(fd->type, 2);
-        // if not defined
-        /* filled code here */
     }
     return;
 }
@@ -473,18 +547,27 @@ void check_FnDef(std::ostream &out, aA_fnDef fd)
     // should match if declared
     check_FnDecl(out, fd->fnDecl);
     // add params to local tokenmap, func params override global ones
+    /* fill code here */
+    if (!fd->fnDecl->paramDecl)
+        error_print(out, fd->pos, "fd->fnDecl->paramDecl is null");
     for (aA_varDecl vd : fd->fnDecl->paramDecl->varDecls)
     {
+        if (!vd || !vd->u.declScalar || !vd->u.declScalar->id)
+            error_print(out, fd->pos, "Function parameter is null.");
+
         string name = *vd->u.declScalar->id;
+        // print_token_maps();
+        // TODO: 07
         if (funcparam_token2Type.find(name) != funcparam_token2Type.end())
             error_print(out, vd->pos, "Function parameter duplicates with other function parameters.");
         funcparam_token2Type[name] = tc_Type(vd);
     }
-    /* fill code here */
+
     if (!fd->fnDecl->type)
         retType = nullptr;
     else
-        retType = tc_Type(fd->fnDecl->type, 2);
+        // retType = tc_Type(fd->fnDecl->type, 2);
+        retType = tc_Type(fd->fnDecl->type, 0);
     // retType.push_back(g_token2Type[*fd->fnDecl->id]);
 
     /* fill code here */
@@ -493,6 +576,7 @@ void check_FnDef(std::ostream &out, aA_fnDef fd)
         check_CodeblockStmt(out, stmt);
         // return value type should match
         /* fill code here */
+        // todo: why? and below
     }
 
     funcparam_token2Type.clear();
@@ -1090,4 +1174,23 @@ string get_type(tc_type type)
 void print_type(tc_type type)
 {
     std::cout << get_type(type) << std::endl;
+}
+
+bool empty_type(tc_type type)
+{
+    return !type || !type->type;
+    //  if (type->type->type == A_structTypeKind && !type->type->u.structType)
+    // return true;
+}
+
+bool empty_type(aA_type type)
+{
+    return !type;
+}
+
+void check_struct_defined(std::ostream &out, A_pos pos, aA_type type, string error_msg)
+{
+    if (type && type->type == A_structTypeKind && type->u.structType)
+        if (struct2Members.find(*type->u.structType) == struct2Members.end())
+            error_print(out, pos, error_msg);
 }

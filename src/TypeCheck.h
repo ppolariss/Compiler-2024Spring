@@ -40,6 +40,9 @@ void assign_type(std::string name, tc_type t);
 tc_type bool_type(A_pos pos);
 void print_type(tc_type type);
 string get_type(tc_type type);
+bool empty_type(tc_type type);
+bool empty_type(aA_type type);
+void check_struct_defined(std::ostream &out, A_pos pos, aA_type type, string error_msg);
 
 struct tc_type_
 {
