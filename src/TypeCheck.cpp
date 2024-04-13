@@ -34,6 +34,11 @@ void print_token_map(typeMap *map)
     for (auto it = map->begin(); it != map->end(); it++)
     {
         std::cout << it->first << " : ";
+        if (!it->second->type)
+        {
+            std::cout << "null" << std::endl;
+            continue;
+        }
         switch (it->second->type->type)
         {
         case A_dataType::A_nativeTypeKind:
@@ -81,8 +86,9 @@ void print_token_maps()
         print_token_map(i);
     }
     std::cout << "currScope:" << std::endl;
-    if (currScope)
-        print_token_map(currScope);
+    // if (currScope)
+    print_token_map(currScope);
+    std::cout << std::endl;
 }
 
 bool comp_aA_type(aA_type target, aA_type t)
@@ -556,8 +562,6 @@ void check_FnDef(std::ostream &out, aA_fnDef fd)
             error_print(out, fd->pos, "Function parameter is null.");
 
         string name = *vd->u.declScalar->id;
-        // print_token_maps();
-        // TODO: 07
         if (funcparam_token2Type.find(name) != funcparam_token2Type.end())
             error_print(out, vd->pos, "Function parameter duplicates with other function parameters.");
         funcparam_token2Type[name] = tc_Type(vd);
@@ -619,7 +623,8 @@ void check_CodeblockStmt(std::ostream &out, aA_codeBlockStmt cs)
     // local_token2Type.pop_back();
     if (--scopeLevel < 0)
         currScope = &g_token2Type;
-    currScope = local_token2Type[scopeLevel];
+    else
+        currScope = local_token2Type[scopeLevel];
     if (local_token2Type.size() > scopeLevel + 2)
     {
         local_token2Type.pop_back();
