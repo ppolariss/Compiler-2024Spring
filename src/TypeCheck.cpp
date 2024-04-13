@@ -110,7 +110,8 @@ bool comp_aA_type(aA_type target, aA_type t)
     return true;
 }
 
-// cannot assign scalar(t) to array(target)
+// unstrict equality: scalar(target) scalar/array/fucntion(t)
+// strict equality: array/fucntion(target) != scalar(t)
 bool comp_tc_type(tc_type target, tc_type t)
 {
     // void = void
@@ -129,12 +130,12 @@ bool comp_tc_type(tc_type target, tc_type t)
     return comp_aA_type(target->type, t->type);
 }
 
-tc_type tc_Type(aA_type t, uint isVarArrFunc)
+tc_type tc_Type(aA_type t, uint isVarArrFunc, uint arrayLength = 0)
 {
     tc_type ret = new tc_type_;
     ret->type = t;
     ret->isVarArrFunc = isVarArrFunc;
-    ret->arrayLength = 0;
+    ret->arrayLength = arrayLength;
     return ret;
 }
 
@@ -143,7 +144,7 @@ tc_type tc_Type(aA_varDecl vd)
     if (vd->kind == A_varDeclType::A_varDeclScalarKind)
         return tc_Type(vd->u.declScalar->type, 0);
     else if (vd->kind == A_varDeclType::A_varDeclArrayKind)
-        return tc_Type(vd->u.declArray->type, 1);
+        return tc_Type(vd->u.declArray->type, 1, vd->u.declArray->len);
     return nullptr;
 }
 
@@ -641,6 +642,8 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
     tc_type actual_type;  // left
     if (!as->leftVal)
         error_print(out, as->pos, "no leftVal in assignment");
+    if (!as->rightVal)
+        error_print(out, as->pos, "no rightVal in assignment");
     switch (as->leftVal->kind)
     {
     case A_leftValType::A_varValKind:
@@ -653,7 +656,9 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
         if (actual_type->isVarArrFunc == 2)
             error_print(out, as->pos, "cannot assign a value to function " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + ".");
 
-        if (as->rightVal->kind == A_boolExprValKind)
+        switch (as->rightVal->kind)
+        {
+        case A_boolExprValKind:
         {
             check_BoolExpr(out, as->rightVal->u.boolExpr);
             deduced_type = bool_type(as->pos);
@@ -666,7 +671,8 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
             if (comp_tc_type(deduced_type, actual_type) == false)
                 error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
         }
-        else if (as->rightVal->kind == A_arithExprValKind)
+        break;
+        case A_arithExprValKind:
         {
             deduced_type = check_ArithExpr(out, as->rightVal->u.arithExpr);
             if (empty_type(deduced_type))
@@ -688,69 +694,69 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
             //         error_print(out, as->pos, "cannot assign due to array length mismatch: " + std::to_string(actual_type->arrayLength) + "!=" + std::to_string(deduced_type->arrayLength));
             // }
         }
-        else
-        {
+        default:
             error_print(out, as->pos, "Type mismatch in assignment!");
+            break;
         }
         /* fill code here */
     }
     break;
     case A_leftValType::A_arrValKind:
     {
-        if (!as->leftVal->u.arrExpr)
-            error_print(out, as->pos, "no arrExpr in leftVal");
-        // 二维数组或member数组
-        if (as->leftVal->u.arrExpr->arr->kind != A_varValKind)
-            error_print(out, as->pos, "Array name should be id!");
-        // really?
-        name = *as->leftVal->u.arrExpr->arr->u.id;
-        check_ArrayExpr(out, as->leftVal->u.arrExpr);
+        // let b[1] = {1};
+        // a=b;
+        // a.a=b;
+        if (!as->leftVal->u.arrExpr || !as->leftVal->u.arrExpr->arr || !as->leftVal->u.arrExpr->idx)
+            error_print(out, as->pos, "arrExpr error in leftVal");
 
-        actual_type = find(out, name, as->pos, false);
-        actual_type->isVarArrFunc = 0;
-
-        if (as->rightVal->kind == A_boolExprValKind)
+        aA_type arrType = check_ArrayExpr(out, as->leftVal->u.arrExpr);
+        actual_type = tc_Type(arrType, 0);
+        switch (as->rightVal->kind)
         {
+        case A_boolExprValKind:
             check_BoolExpr(out, as->rightVal->u.boolExpr);
-            if (comp_tc_type(bool_type(as->pos), actual_type) == false)
-                error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(bool_type(as->pos)));
-        }
-        else if (as->rightVal->kind == A_arithExprValKind)
-        {
+            deduced_type = bool_type(as->pos);
+            if (comp_tc_type(deduced_type, actual_type) == false)
+                error_print(out, as->pos, "cannot assign due to array type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
+            break;
+        case A_arithExprValKind:
             deduced_type = check_ArithExpr(out, as->rightVal->u.arithExpr);
             if (comp_tc_type(deduced_type, actual_type) == false)
-            {
-                error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
-            }
-        }
-        else
-        {
+                error_print(out, as->pos, "cannot assign due to array type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
+            break;
+        default:
             error_print(out, as->pos, "Type mismatch in assignment!");
+            break;
         }
         /* fill code here */
     }
     break;
     case A_leftValType::A_memberValKind:
     {
+        // a.b = 1
         actual_type = check_MemberExpr(out, as->leftVal->u.memberExpr);
-        if (as->rightVal->kind == A_boolExprValKind)
+        switch (as->rightVal->kind)
+        {
+        case A_boolExprValKind:
         {
             check_BoolExpr(out, as->rightVal->u.boolExpr);
-            if (comp_tc_type(bool_type(as->pos), actual_type) == false)
-                error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(bool_type(as->pos)));
+            deduced_type = bool_type(as->pos);
+            if (comp_tc_type(deduced_type, actual_type) == false)
+                error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
         }
-        else if (as->rightVal->kind == A_arithExprValKind)
+        break;
+
+        case A_arithExprValKind:
         {
             deduced_type = check_ArithExpr(out, as->rightVal->u.arithExpr);
-            deduced_type->isVarArrFunc = 0;
-            if (comp_tc_type(deduced_type, actual_type) == false)
-            {
+            if (comp_tc_type(actual_type, deduced_type) == false)
                 error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
-            }
         }
-        else
-        {
+        break;
+
+        default:
             error_print(out, as->pos, "Type mismatch in assignment!");
+            break;
         }
         /* fill code here */
     }
@@ -759,69 +765,127 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
     return;
 }
 
-void check_ArrayExpr(std::ostream &out, aA_arrayExpr ae)
+aA_type check_ArrayExpr(std::ostream &out, aA_arrayExpr ae)
 {
     if (!ae)
-        return;
-    string name = *ae->arr->u.id;
+        return nullptr;
+    if (!ae->arr || !ae->idx)
+        error_print(out, ae->pos, "no arr or idx in arrayExpr");
     // check array name
-    // if ( == nullptr)
-    //     error_print(out, ae->pos, "This id is not defined!");
-
-    tc_type arrType = find(out, name, ae->pos, false);
-    if (arrType->isVarArrFunc != 1)
-        error_print(out, ae->pos, "This id is not an array!");
     /* fill code here */
+    tc_type arrType;
+    switch (ae->arr->kind)
+    {
+    case A_varValKind:
+    {
+        if (!ae->arr->u.id)
+            error_print(out, ae->pos, "no id in arrayExpr");
+        string name = *ae->arr->u.id;
+        arrType = find(out, name, ae->pos, false);
+    }
+    break;
+    case A_memberValKind:
+    {
+        if (!ae->arr->u.memberExpr)
+            error_print(out, ae->pos, "no memberExpr in arrayExpr");
+        arrType = check_MemberExpr(out, ae->arr->u.memberExpr);
+        // a.arr[1] = 0;
+    }
+    break;
+    default:
+        error_print(out, ae->pos, "there is no 2D array in teapl!");
+        break;
+    }
+
+    if (arrType->isVarArrFunc != 1)
+        error_print(out, ae->pos, "This member is not an array!");
 
     // check index
-    if (ae->idx->kind == A_numIndexKind)
+    /* filling code here */
+    switch (ae->idx->kind)
+    {
+    case A_numIndexKind:
     {
         if (arrType->arrayLength <= ae->idx->u.num || ae->idx->u.num < 0)
-        {
             error_print(out, ae->pos, "Array index out of bound!");
-        }
     }
-    else if (ae->idx->kind == A_idIndexKind)
+    break;
+    case A_idIndexKind:
     {
+        if (!ae->idx->u.id)
+            error_print(out, ae->pos, "no id in arrayExpr's idx");
         tc_type type = find(out, *ae->idx->u.id, ae->pos, false);
         if (type->isVarArrFunc != 0 ||
+            !type->type ||
             type->type->type != A_dataType::A_nativeTypeKind ||
             type->type->u.nativeType != A_nativeType::A_intTypeKind)
-            error_print(out, ae->pos, "Array index should be int!");
+            error_print(out, ae->pos, "Array index should be int scalar!");
+    }
+    default:
+        error_print(out, ae->pos, "Array index should be int!");
+        break;
     }
 
-    /* filling code here */
-    return;
+    return arrType->type;
 }
 
 tc_type check_MemberExpr(std::ostream &out, aA_memberExpr me)
 {
-    // check if the member exists and return the tyep of the member
+    // check if the member exists and return the type of the member
     if (!me)
         return nullptr;
-    string name = *me->structId->u.id;
-    // this is not the struct name!!!!!
+    if (!me->structId || !me->memberId || !me->structId)
+        error_print(out, me->pos, "no structId in memberExpr");
 
+    tc_type structType = nullptr;
+    switch (me->structId->kind)
+    {
+    case A_varValKind:
+    {
+        if (!me->structId->u.id)
+            error_print(out, me->pos, "no id in memberExpr");
+        // this is not the struct name!!!!!
+        string name = *me->structId->u.id;
+        structType = find(out, name, me->pos, false);
+    }
+    break;
+
+    case A_arrValKind:
+        structType = tc_Type(check_ArrayExpr(out, me->structId->u.arrExpr), 0);
+        break;
+
+    case A_memberValKind:
+        structType = check_MemberExpr(out, me->structId->u.memberExpr);
+        break;
+
+    default:
+        error_print(out, me->pos, "error in memberExpr");
+        break;
+    }
     // check struct name
-    tc_type structType = find(out, name, me->pos, false);
-    // if (structType->type->u.nativeType == A_nativeType::A_intTypeKind)
-    //     error_print(out, me->pos, "error Here");
+    /* fill code here */
+    if (empty_type(structType))
+        error_print(out, me->pos, "struct is not defined.");
     if (structType->type->type != A_dataType::A_structTypeKind)
-        error_print(out, me->pos, name + " is not a struct.");
+        error_print(out, me->pos, +"this is not a struct.");
+    if (!structType->type->u.structType)
+        error_print(out, me->pos, "struct is not defined.");
+
     auto members = struct2Members[*structType->type->u.structType];
+    if (!members)
+        error_print(out, me->pos, "members is null");
     string member = *me->memberId;
 
-    /* fill code here */
     // check member name
+    /* fill code here */
     for (const auto &i : *members)
     {
+        if (!i || !i->u.declScalar || !i->u.declScalar->id)
+            error_print(out, me->pos, "member is null");
         if (*i->u.declScalar->id == member)
-        {
             return tc_Type(i);
-        }
     }
     error_print(out, me->pos, "member '" + member + "' is not defined.");
-    /* fill code here */
 
     return nullptr;
 }
@@ -920,6 +984,8 @@ tc_type check_ExprUnit(std::ostream &out, aA_exprUnit eu)
     {
     case A_exprUnitType::A_idExprKind:
     {
+        if (!eu->u.id)
+            error_print(out, eu->pos, "no id in exprUnit");
         string name = *eu->u.id;
         ret = find(out, name, eu->pos, false);
         /* filled code here */
@@ -1059,6 +1125,7 @@ void check_ReturnStmt(std::ostream &out, aA_returnStmt rs)
         return;
     tc_type ret_type = retType;
     // auto ret_type = retType.back();
+    // todo
     if (!rs || !rs->retVal)
         if (!ret_type)
             return;

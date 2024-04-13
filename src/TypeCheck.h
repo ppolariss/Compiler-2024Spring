@@ -24,7 +24,7 @@ void check_FnDeclStmt(std::ostream &out, aA_fnDeclStmt fd);
 void check_FnDef(std::ostream &out, aA_fnDef fd);
 void check_CodeblockStmt(std::ostream &out, aA_codeBlockStmt cs);
 void check_AssignStmt(std::ostream &out, aA_assignStmt as);
-void check_ArrayExpr(std::ostream &out, aA_arrayExpr ae);
+aA_type check_ArrayExpr(std::ostream &out, aA_arrayExpr ae);
 tc_type check_MemberExpr(std::ostream &out, aA_memberExpr me);
 void check_IfStmt(std::ostream &out, aA_ifStmt is);
 void check_BoolExpr(std::ostream &out, aA_boolExpr be);
