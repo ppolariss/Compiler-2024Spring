@@ -25,6 +25,11 @@ paramMemberMap struct2Members;
 // private util functions
 void error_print(std::ostream &out, A_pos p, string info)
 {
+    if (!p)
+    {
+        std::cout << "pos error: " << info << std::endl;
+        exit(0);
+    }
     out << "Typecheck error in line " << p->line << ", col " << p->col << ": " << info << std::endl;
     exit(0);
 }
@@ -172,6 +177,8 @@ void check_Prog(std::ostream &out, aA_program p)
         else if (ele->kind == A_programFnDefKind)
         {
             // notice: distinguish from double def
+            if (!ele->u.fnDef->fnDecl || !ele->u.fnDef->fnDecl->id)
+                error_print(out, ele->u.fnDef->fnDecl->pos, "Function id is null!");
             string name = *ele->u.fnDef->fnDecl->id;
             if (definedFn.find(name) != definedFn.end())
                 error_print(out, ele->u.fnDef->fnDecl->pos, "Function " + name + " is already defined!");
@@ -576,6 +583,7 @@ void check_FnDef(std::ostream &out, aA_fnDef fd)
     // retType.push_back(g_token2Type[*fd->fnDecl->id]);
 
     /* fill code here */
+    enterScope();
     for (aA_codeBlockStmt stmt : fd->stmts)
     {
         check_CodeblockStmt(out, stmt);
@@ -583,6 +591,7 @@ void check_FnDef(std::ostream &out, aA_fnDef fd)
         /* fill code here */
         // todo: why?
     }
+    exitScope();
 
     funcparam_token2Type.clear();
 
@@ -593,9 +602,7 @@ void check_CodeblockStmt(std::ostream &out, aA_codeBlockStmt cs)
 {
     if (!cs)
         return;
-    // std::cout << "\nnow it's " << scopeLevel + 1;
-    local_token2Type.push_back(new typeMap);
-    currScope = local_token2Type[++scopeLevel];
+
     // variables declared in a code block should not duplicate with outer ones.
     switch (cs->kind)
     {
@@ -621,15 +628,6 @@ void check_CodeblockStmt(std::ostream &out, aA_codeBlockStmt cs)
         break;
     }
 
-    // local_token2Type.pop_back();
-    if (--scopeLevel < 0)
-        currScope = &g_token2Type;
-    else
-        currScope = local_token2Type[scopeLevel];
-    if (local_token2Type.size() > scopeLevel + 2)
-    {
-        local_token2Type.pop_back();
-    }
     return;
 }
 
@@ -765,6 +763,8 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
     return;
 }
 
+// there is no 2D array and function array in teapl
+// so the return type is always scalar
 aA_type check_ArrayExpr(std::ostream &out, aA_arrayExpr ae)
 {
     if (!ae)
@@ -894,19 +894,24 @@ void check_IfStmt(std::ostream &out, aA_ifStmt is)
 {
     if (!is)
         return;
+    if (!is->boolExpr)
+        error_print(out, is->pos, "no boolExpr in ifStmt");
     check_BoolExpr(out, is->boolExpr);
     /* fill code here, take care of variable scope */
-
+    // todo
+    enterScope();
     for (aA_codeBlockStmt s : is->ifStmts)
     {
         check_CodeblockStmt(out, s);
     }
-
+    exitScope();
+    enterScope();
     /* fill code here */
     for (aA_codeBlockStmt s : is->elseStmts)
     {
         check_CodeblockStmt(out, s);
     }
+    exitScope();
     /* fill code here */
     return;
 }
@@ -938,26 +943,25 @@ void check_BoolUnit(std::ostream &out, aA_boolUnit bu)
     {
     case A_boolUnitType::A_comOpExprKind:
     {
+        if (!bu->u.comExpr || !bu->u.comExpr->left || !bu->u.comExpr->right)
+            error_print(out, bu->pos, "no comExpr in boolUnit");
         tc_type a = check_ExprUnit(out, bu->u.comExpr->left);
         tc_type b = check_ExprUnit(out, bu->u.comExpr->right);
+        if (empty_type(a) || empty_type(b))
+            error_print(out, bu->pos, "void value in comparison!");
+        if (a->isVarArrFunc != b->isVarArrFunc)
+            error_print(out, bu->pos, "different types in comparison!");
         if (comp_tc_type(a, b) == false)
         {
+            // just for error printing
             if (a->type->type == A_dataType::A_structTypeKind && b->type->type == A_dataType::A_structTypeKind)
-            {
-                error_print(out, bu->pos, *a->type->u.structType + " is not comparable with " + *b->type->u.structType + ".");
-            }
+                error_print(out, bu->pos, get_type(a) + " is not comparable with " + get_type(b) + ".");
             else if (a->type->type == A_dataType::A_structTypeKind)
-            {
-                error_print(out, bu->pos, *a->type->u.structType + " is not comparable with int.");
-            }
+                error_print(out, bu->pos, get_type(a) + " is not comparable with int.");
             else if (b->type->type == A_dataType::A_structTypeKind)
-            {
-                error_print(out, bu->pos, *b->type->u.structType + " is not comparable with int.");
-            }
+                error_print(out, bu->pos, get_type(b) + " is not comparable with int.");
             else
-            {
-                error_print(out, bu->pos, "Type mismatch in comparison!");
-            }
+                error_print(out, bu->pos, "different types in comparison!");
         }
         /* fill code here */
     }
@@ -1010,8 +1014,7 @@ tc_type check_ExprUnit(std::ostream &out, aA_exprUnit eu)
     break;
     case A_exprUnitType::A_arrayExprKind:
     {
-        check_ArrayExpr(out, eu->u.arrayExpr);
-        ret = find(out, *eu->u.arrayExpr->arr->u.id, eu->pos, false);
+        ret = tc_Type(check_ArrayExpr(out, eu->u.arrayExpr), 0);
         /* fill code here */
     }
     break;
@@ -1062,34 +1065,44 @@ void check_FuncCall(std::ostream &out, aA_fnCall fc)
     if (!fc)
         return;
     // check if function defined
+    if (!fc->fn)
+        error_print(out, fc->pos, "Function name is null!");
     string func_name = *fc->fn;
     if (func2Param.find(func_name) == func2Param.end())
         error_print(out, fc->pos, "This function is not defined!");
     vector<aA_varDecl> *params = func2Param[func_name];
+    if (!params)
+        error_print(out, fc->pos, "params is null");
     /* fill code here */
 
     // check if parameter list matches
     if (fc->vals.size() < params->size())
-        error_print(out, fc->pos, "Too few parameters!");
+        error_print(out, fc->pos, "Too few parameters in function call!");
     else if (fc->vals.size() > params->size())
-        error_print(out, fc->pos, "Too many parameters!");
+        error_print(out, fc->pos, "Too many parameters in function call!");
+
     for (int i = 0; i < fc->vals.size(); i++)
     {
+        tc_type expect_type = tc_Type(params->at(i));
         if (fc->vals[i]->kind == A_arithExprValKind)
         {
-            if (!comp_tc_type(check_ArithExpr(out, fc->vals[i]->u.arithExpr), tc_Type(params->at(i))))
-                error_print(out, fc->pos, "Function parameter type mismatch!");
+            tc_type actual_type = check_ArithExpr(out, fc->vals[i]->u.arithExpr);
+            if (expect_type->isVarArrFunc != actual_type->isVarArrFunc)
+                error_print(out, fc->pos, "Function parameter type mismatch in function call!");
+            if (!comp_tc_type(actual_type, expect_type))
+                error_print(out, fc->pos, "Function parameter type mismatch in function call!");
         }
         else if (fc->vals[i]->kind == A_boolExprValKind)
         {
+            tc_type actual_type = bool_type(fc->pos);
             check_BoolExpr(out, fc->vals[i]->u.boolExpr);
-            if (bool_type(fc->pos) != tc_Type(params->at(i)))
-                error_print(out, fc->pos, "Function parameter type mismatch!");
+            if (expect_type->isVarArrFunc != actual_type->isVarArrFunc)
+                error_print(out, fc->pos, "Function parameter type mismatch in function call!");
+            if (!comp_tc_type(actual_type, expect_type))
+                error_print(out, fc->pos, "Function parameter type mismatch in function call!");
         }
         else
-        {
             error_print(out, fc->pos, "Function parameter type mismatch!");
-        }
         /* fill code here */
     }
     return;
@@ -1101,12 +1114,13 @@ void check_WhileStmt(std::ostream &out, aA_whileStmt ws)
         return;
     check_BoolExpr(out, ws->boolExpr);
     /* fill code here, take care of variable scope */
-
+    enterScope();
     for (aA_codeBlockStmt s : ws->whileStmts)
     {
         check_CodeblockStmt(out, s);
     }
     /* fill code here */
+    exitScope();
 
     return;
 }
@@ -1125,31 +1139,39 @@ void check_ReturnStmt(std::ostream &out, aA_returnStmt rs)
         return;
     tc_type ret_type = retType;
     // auto ret_type = retType.back();
-    // todo
-    if (!rs || !rs->retVal)
-        if (!ret_type)
-            return;
-        else
-            error_print(out, rs->pos, "Return type mismatch!");
-    if (!ret_type)
-        error_print(out, rs->pos, "Return type mismatch!");
-    // print_type(ret_type);
-    if (rs->retVal->kind == A_arithExprValKind)
+    if (!ret_type && !rs->retVal)
+        return;
+    else if (!ret_type && rs->retVal)
+        error_print(out, rs->pos, "Return type mismatch! void function should not have return value.");
+    else if (ret_type && !rs->retVal)
+        error_print(out, rs->pos, "Return type mismatch! non-void function should have return value.");
+
+    if (!rs->retVal->kind)
+        return;
+    switch (rs->retVal->kind)
     {
-        if (!comp_tc_type(check_ArithExpr(out, rs->retVal->u.arithExpr), ret_type))
-            error_print(out, rs->pos, "Return type mismatch!");
-    }
-    else if (rs->retVal->kind == A_boolExprValKind)
+    case A_boolExprValKind:
     {
         check_BoolExpr(out, rs->retVal->u.boolExpr);
-        if (!comp_tc_type(bool_type(rs->pos), ret_type))
+        tc_type tmp_type = bool_type(rs->pos);
+        if (tmp_type->isVarArrFunc != ret_type->isVarArrFunc)
+            error_print(out, rs->pos, "Return type mismatch!");
+        if (!comp_tc_type(tmp_type, ret_type))
             error_print(out, rs->pos, "Return type mismatch!");
     }
-    else
+    break;
+    case A_arithExprValKind:
     {
-        error_print(out, rs->pos, "Return type mismatch!");
+        tc_type tmp_type = check_ArithExpr(out, rs->retVal->u.arithExpr);
+        if (tmp_type->isVarArrFunc != ret_type->isVarArrFunc)
+            error_print(out, rs->pos, "Return type mismatch!");
+        if (!comp_tc_type(tmp_type, ret_type))
+            error_print(out, rs->pos, "Return type mismatch!");
     }
-    return;
+    default:
+        error_print(out, rs->pos, "Return type mismatch!");
+        break;
+    }
 }
 
 tc_type find(std::ostream &out, std::string name, A_pos pos, bool expected_available)
@@ -1170,7 +1192,11 @@ tc_type find(std::ostream &out, std::string name, A_pos pos, bool expected_avail
                 }
             }
             if (!expected_available)
+            {
+                if (!pos)
+                    error_print(out, pos, "pos error");
                 error_print(out, pos, "var " + name + " on line " + std::to_string(pos->line) + ", col " + std::to_string(pos->col) + " is not defined.");
+            }
             return nullptr;
         }
         if (expected_available)
@@ -1228,8 +1254,12 @@ string get_type(tc_type type)
         }
         break;
     case A_dataType::A_structTypeKind:
+    {
+        if (!type->type->u.structType)
+            error_print(std::cout, type->type->pos, "struct type is null");
         ret += *(type->type->u.structType);
-        break;
+    }
+    break;
     default:
         break;
     }
@@ -1270,4 +1300,24 @@ void check_struct_defined(std::ostream &out, A_pos pos, aA_type type, string err
     if (type && type->type == A_structTypeKind && type->u.structType)
         if (struct2Members.find(*type->u.structType) == struct2Members.end())
             error_print(out, pos, error_msg);
+}
+
+void enterScope()
+{
+    // std::cout << "\nnow it's " << scopeLevel + 1;
+    local_token2Type.push_back(new typeMap);
+    currScope = local_token2Type[++scopeLevel];
+}
+
+void exitScope()
+{
+    // local_token2Type.pop_back();
+    if (--scopeLevel < 0)
+        currScope = &g_token2Type;
+    else
+        currScope = local_token2Type[scopeLevel];
+    if (local_token2Type.size() > scopeLevel + 1)
+    {
+        local_token2Type.pop_back();
+    }
 }

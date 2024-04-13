@@ -44,6 +44,9 @@ bool empty_type(tc_type type);
 bool empty_type(aA_type type);
 void check_struct_defined(std::ostream &out, A_pos pos, aA_type type, string error_msg);
 
+void enterScope();
+void exitScope();
+
 struct tc_type_
 {
     aA_type type;
