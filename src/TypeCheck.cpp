@@ -299,7 +299,7 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd)
 
                     tc_type left_type = tc_Type(vdef->u.defScalar->type, 0);
                     if (!comp_tc_type(left_type, right_type))
-                        error_print(out, vdef->pos, "struct type mismatch in varDecl! (decl and def)");
+                        error_print(out, vdef->pos, "struct type in varDecl! (decl and def mismatch)");
 
                     (*currScope)[name] = left_type;
                 }
@@ -540,8 +540,12 @@ void check_FnDecl(std::ostream &out, aA_fnDecl fd)
             error_print(out, fd->pos, "Function parameter number mismatch!");
         for (int i = 0; i < fd->paramDecl->varDecls.size(); i++)
         {
-            if (!comp_tc_type(tc_Type(fd->paramDecl->varDecls[i]), tc_Type(func2Param[name]->at(i))))
-                error_print(out, fd->pos, "Function parameter type mismatch!");
+            tc_type decl_type = tc_Type(fd->paramDecl->varDecls[i]);
+            tc_type func_type = tc_Type(func2Param[name]->at(i));
+            if (empty_type(decl_type) || empty_type(func_type))
+                error_print(out, fd->pos, "function parameter type should not be void!");
+            if (!comp_tc_type(decl_type, func_type))
+                error_print(out, fd->pos, "function parameter type mismatch with declaration!");
         }
     }
     else
@@ -553,8 +557,28 @@ void check_FnDecl(std::ostream &out, aA_fnDecl fd)
         // check struct type
         for (const auto &i : fd->paramDecl->varDecls)
         {
-            if (i->kind == A_varDeclScalarKind && i->u.declScalar)
-                check_struct_defined(out, i->pos, i->u.declScalar->type, "function parameter's struct type is not defined!");
+            switch (i->kind)
+            {
+            case A_varDeclScalarKind:
+            {
+                if (!i->u.declScalar || !i->u.declScalar->type)
+                    error_print(out, i->pos, "Function parameter type is null!");
+                if (i->kind == A_varDeclScalarKind && i->u.declScalar)
+                    check_struct_defined(out, i->pos, i->u.declScalar->type, "function parameter's struct type is not defined!");
+            }
+            break;
+            case A_varDeclArrayKind:
+            {
+                if (!i->u.declArray || !i->u.declArray->type)
+                    error_print(out, i->pos, "Function parameter type is null!");
+                if (i->kind == A_varDeclArrayKind && i->u.declArray)
+                    check_struct_defined(out, i->pos, i->u.declArray->type, "function parameter's struct type is not defined!");
+            }
+            break;
+            default:
+                error_print(out, i->pos, "Function parameter type is null!");
+                break;
+            }
         }
         if (!empty_type(fd->type))
             check_struct_defined(out, fd->pos, fd->type, "function return type's struct type is not defined!");
@@ -699,6 +723,7 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
             {
                 if (actual_type->isVarArrFunc != deduced_type->isVarArrFunc)
                     error_print(out, as->pos, "cannot assign a value to " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + " due to isVarArrFunc mismatch.");
+                // check array length if you want
                 assign_type(name, deduced_type);
             }
             else if (comp_tc_type(actual_type, deduced_type) == false)
@@ -767,6 +792,7 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
         case A_arithExprValKind:
         {
             deduced_type = check_ArithExpr(out, as->rightVal->u.arithExpr);
+            // check array length if you want
             if (comp_tc_type(actual_type, deduced_type) == false)
                 error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
         }

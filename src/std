@@ -106,7 +106,7 @@ tests/32_func_param_mismatch_type.tea
 Typecheck error in line 3, col 1: Function foo is already defined!
 
 tests/33_func_param_ignore.tea
-Typecheck error in line 1, col 1: Function parameter type mismatch!
+Typecheck error in line 1, col 8: Function parameter type is null!
 
 tests/34_func_param_type_undefined.tea
 Typecheck error in line 1, col 8: function parameter's struct type is not defined!
@@ -190,7 +190,7 @@ tests/mytest24.tea
 Typecheck passed!
 
 tests/mytest25.tea
-Typecheck error in line 4, col 5: struct type mismatch in varDecl! (decl and def)
+Typecheck error in line 6, col 5: cannot assign void value to variable b on line 6, col 5.
 
 tests/mytest26.tea
 Typecheck error in line 1, col 13: Function parameter duplicates with other function parameters.
