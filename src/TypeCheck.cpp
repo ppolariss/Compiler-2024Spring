@@ -864,12 +864,10 @@ tc_type check_MemberExpr(std::ostream &out, aA_memberExpr me)
     }
     // check struct name
     /* fill code here */
-    if (empty_type(structType))
-        error_print(out, me->pos, "struct is not defined.");
-    if (structType->type->type != A_dataType::A_structTypeKind)
-        error_print(out, me->pos, +"this is not a struct.");
+    if (empty_type(structType) || structType->type->type != A_dataType::A_structTypeKind)
+        error_print(out, me->pos, "this is not a struct.");
     if (!structType->type->u.structType)
-        error_print(out, me->pos, "struct is not defined.");
+        error_print(out, me->pos, "it is a struct indeed but struct's not defined.");
 
     auto members = struct2Members[*structType->type->u.structType];
     if (!members)
