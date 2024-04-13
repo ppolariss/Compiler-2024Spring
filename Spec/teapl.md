@@ -89,8 +89,8 @@ structType := id
 Developers can define new customized types with the preserved keyword struct, e.g., 
 ```
 struct MyStruct { 
-    node:int, 
-    len:int  
+    node:int,
+    len:int 
 }
 ```
 

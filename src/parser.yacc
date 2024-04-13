@@ -51,9 +51,11 @@ extern int  yywrap();
   A_varDeclList varDeclList;
   A_codeBlockStmtList codeBlockStmtList;
   A_rightValList rightValList;
+  A_rightValList restRightValList;
   A_tokenId tokenId;
   A_tokenNum tokenNum;
   A_arithBiOpExpr arithBiOpExpr;
+  A_varDeclList restDeclList;
 }
 
 %token <pos> ADD
@@ -112,7 +114,7 @@ extern int  yywrap();
 %type <varDeclStmt> VarDeclStmt
 %type <fnDeclStmt> FnDeclStmt
 %type <fnDef> FnDef
-
+%type <varDeclList> RestDeclList
 %type <boolExpr> BoolExpr
 %type <fnDecl> FnDecl
 %type <type> Type
@@ -141,6 +143,7 @@ extern int  yywrap();
 %type <varDeclList> VarDeclList
 %type <codeBlockStmtList> CodeBlockStmtList
 %type <rightValList> RightValList
+%type <rightValList> RestRightValList
 
 // ArithBiOpExpr
 %type <arithBiOpExpr> ArithBiOpExpr
@@ -383,15 +386,21 @@ FnCall: ID LPAREN RightValList RPAREN
 }
 ;
 
-RightValList: RightVal COMMA RightValList
+RightValList: RightVal RestRightValList
 {
-  $$ = A_RightValList($1, $3);
-}
-| RightVal
-{
-  $$ = A_RightValList($1, nullptr);
+  $$ = A_RightValList($1, $2);
 }
 | 
+{
+  $$ = nullptr;
+}
+;
+
+RestRightValList: COMMA RightVal RestRightValList
+{
+  $$ = A_RightValList($2, $3);
+}
+|
 {
   $$ = nullptr;
 }
@@ -461,13 +470,19 @@ StructDef: STRUCT ID LBRACE VarDeclList RBRACE
 }
 ;
 
-VarDeclList: VarDecl COMMA VarDeclList
+VarDeclList: VarDecl RestDeclList
 {
-  $$ = A_VarDeclList($1, $3);
+  $$ = A_VarDeclList($1, $2);
 }
-| VarDecl
+|
 {
-  $$ = A_VarDeclList($1, nullptr);
+  $$ = nullptr;
+}
+;
+
+RestDeclList: COMMA VarDecl RestDeclList
+{
+  $$ = A_VarDeclList($2, $3);
 }
 |
 {

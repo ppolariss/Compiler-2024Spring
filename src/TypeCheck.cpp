@@ -580,7 +580,7 @@ void check_FnDef(std::ostream &out, aA_fnDef fd)
         check_CodeblockStmt(out, stmt);
         // return value type should match
         /* fill code here */
-        // todo: why? and below
+        // todo: why?
     }
 
     funcparam_token2Type.clear();
@@ -637,44 +637,45 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
     if (!as)
         return;
     string name;
-    tc_type deduced_type; // deduced type if type is omitted at decl
-
-    tc_type actual_type;
+    tc_type deduced_type; // right
+    tc_type actual_type;  // left
+    if (!as->leftVal)
+        error_print(out, as->pos, "no leftVal in assignment");
     switch (as->leftVal->kind)
     {
     case A_leftValType::A_varValKind:
     {
+        if (!as->leftVal->u.id)
+            error_print(out, as->pos, "no id in leftVal");
         name = *as->leftVal->u.id;
-        // std::cout << name << std::endl;
+
         actual_type = find(out, name, as->pos, false);
-        if (!actual_type)
-            error_print(out, as->pos, "cannot assign value to undeclared variable " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + ".");
         if (actual_type->isVarArrFunc == 2)
             error_print(out, as->pos, "cannot assign a value to function " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + ".");
 
         if (as->rightVal->kind == A_boolExprValKind)
         {
             check_BoolExpr(out, as->rightVal->u.boolExpr);
-            if (!actual_type)
+            deduced_type = bool_type(as->pos);
+            if (empty_type(actual_type))
             {
-                if (actual_type->isVarArrFunc == 1)
+                if (actual_type && actual_type->isVarArrFunc == 1)
                     error_print(out, as->pos, "cannot assign a value to array " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + ".");
-                assign_type(name, bool_type(as->pos));
+                assign_type(name, deduced_type);
             }
-            if (comp_tc_type(bool_type(as->pos), actual_type) == false)
-                error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(bool_type(as->pos)));
+            if (comp_tc_type(deduced_type, actual_type) == false)
+                error_print(out, as->pos, "cannot assign due to type mismatch: " + get_type(actual_type) + "!=" + get_type(deduced_type));
         }
         else if (as->rightVal->kind == A_arithExprValKind)
         {
             deduced_type = check_ArithExpr(out, as->rightVal->u.arithExpr);
-            if (!deduced_type || !deduced_type->type)
-                error_print(out, as->pos, "cannot assign unknown-type value to variable " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + ".");
+            if (empty_type(deduced_type))
+                error_print(out, as->pos, "cannot assign void value to variable " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + ".");
 
-            // !actual_type ||
-            if (!actual_type->type)
+            if (empty_type(actual_type) && actual_type)
             {
                 if (actual_type->isVarArrFunc != deduced_type->isVarArrFunc)
-                    error_print(out, as->pos, "cannot assign a value to " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + ".");
+                    error_print(out, as->pos, "cannot assign a value to " + name + " on line " + std::to_string(as->pos->line) + ", col " + std::to_string(as->pos->col) + " due to isVarArrFunc mismatch.");
                 assign_type(name, deduced_type);
             }
             else if (comp_tc_type(actual_type, deduced_type) == false)
@@ -696,8 +697,11 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
     break;
     case A_leftValType::A_arrValKind:
     {
+        if (!as->leftVal->u.arrExpr)
+            error_print(out, as->pos, "no arrExpr in leftVal");
+        // 二维数组或member数组
         if (as->leftVal->u.arrExpr->arr->kind != A_varValKind)
-            error_print(out, as->pos, "Array index should be id!");
+            error_print(out, as->pos, "Array name should be id!");
         // really?
         name = *as->leftVal->u.arrExpr->arr->u.id;
         check_ArrayExpr(out, as->leftVal->u.arrExpr);
@@ -1113,6 +1117,7 @@ tc_type find(std::ostream &out, std::string name, A_pos pos, bool expected_avail
 
 void assign_type(std::string name, tc_type t)
 {
+    // only occurs in global and local scope
     // if (funcparam_token2Type.find(name) == funcparam_token2Type.end())
     // {
     if (g_token2Type.find(name) == g_token2Type.end())
