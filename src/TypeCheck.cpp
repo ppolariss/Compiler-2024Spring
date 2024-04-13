@@ -451,6 +451,25 @@ void check_StructDef(std::ostream &out, aA_structDef sd)
     //     return;
     if (struct2Members.find(name) != struct2Members.end())
         error_print(out, sd->pos, "struct id duplicates with other struct ids.");
+    // checl if each varDecl has type
+    for (const auto &i : sd->varDecls)
+    {
+        switch (i->kind)
+        {
+        case A_varDeclScalarKind:
+            if (!i->u.declScalar || !i->u.declScalar->type)
+                error_print(out, i->pos, "struct member type is null!");
+            break;
+        case A_varDeclArrayKind:
+            if (!i->u.declArray || !i->u.declArray->type)
+                error_print(out, i->pos, "struct member type is null!");
+            check_struct_defined(out, i->pos, i->u.declArray->type, "struct member's array type is not defined!");
+            break;
+        default:
+            error_print(out, i->pos, "struct member type is null!");
+            break;
+        }
+    }
     struct2Members[name] = &(sd->varDecls);
     return;
 }
@@ -493,16 +512,16 @@ void check_FnDecl(std::ostream &out, aA_fnDecl fd)
         if (empty_type(declaredType) && empty_type(fd->type))
             ;
         else if (empty_type(declaredType))
-            error_print(out, fd->pos, "void function " + name + " should not have return value.");
+            error_print(out, fd->pos, "void function(in declaration) " + name + " should not have return value.");
         else if (empty_type(fd->type))
         {
             // error_print(out, fd->pos, "Function " + name + " should have return value.");
             // error printing maybe encounter segmenation fault
             // just for print error below
             if (declaredType && declaredType->type && declaredType->type->pos)
-                error_print(out, fd->pos, "Function definition on line " + std::to_string(fd->pos->line) + " doesn't match the declaration on line " + std::to_string(g_token2Type[name]->type->pos->line) + ".");
+                error_print(out, fd->pos, "void function definition on line " + std::to_string(fd->pos->line) + " doesn't match the declaration on line " + std::to_string(g_token2Type[name]->type->pos->line) + ".");
             else
-                error_print(out, fd->pos, "Function definition on line " + std::to_string(fd->pos->line) + " doesn't match the declaration on line ?.");
+                error_print(out, fd->pos, "void function definition on line " + std::to_string(fd->pos->line) + " doesn't match the declaration on line ?.");
         }
         else if (!comp_tc_type(declaredType, tc_Type(fd->type, 2)))
         {
@@ -692,6 +711,7 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as)
             //         error_print(out, as->pos, "cannot assign due to array length mismatch: " + std::to_string(actual_type->arrayLength) + "!=" + std::to_string(deduced_type->arrayLength));
             // }
         }
+        break;
         default:
             error_print(out, as->pos, "Type mismatch in assignment!");
             break;
@@ -896,7 +916,6 @@ void check_IfStmt(std::ostream &out, aA_ifStmt is)
         error_print(out, is->pos, "no boolExpr in ifStmt");
     check_BoolExpr(out, is->boolExpr);
     /* fill code here, take care of variable scope */
-    // todo
     enterScope();
     for (aA_codeBlockStmt s : is->ifStmts)
     {
@@ -1144,32 +1163,25 @@ void check_ReturnStmt(std::ostream &out, aA_returnStmt rs)
     else if (ret_type && !rs->retVal)
         error_print(out, rs->pos, "Return type mismatch! non-void function should have return value.");
 
-    if (!rs->retVal->kind)
-        return;
+    tc_type tmp_type = nullptr;
     switch (rs->retVal->kind)
     {
     case A_boolExprValKind:
-    {
         check_BoolExpr(out, rs->retVal->u.boolExpr);
-        tc_type tmp_type = bool_type(rs->pos);
-        if (tmp_type->isVarArrFunc != ret_type->isVarArrFunc)
-            error_print(out, rs->pos, "Return type mismatch!");
-        if (!comp_tc_type(tmp_type, ret_type))
-            error_print(out, rs->pos, "Return type mismatch!");
-    }
-    break;
+        tmp_type = bool_type(rs->pos);
+        break;
     case A_arithExprValKind:
-    {
-        tc_type tmp_type = check_ArithExpr(out, rs->retVal->u.arithExpr);
-        if (tmp_type->isVarArrFunc != ret_type->isVarArrFunc)
-            error_print(out, rs->pos, "Return type mismatch!");
-        if (!comp_tc_type(tmp_type, ret_type))
-            error_print(out, rs->pos, "Return type mismatch!");
-    }
+        tmp_type = check_ArithExpr(out, rs->retVal->u.arithExpr);
+        break;
     default:
         error_print(out, rs->pos, "Return type mismatch!");
         break;
     }
+
+    if ((tmp_type->isVarArrFunc == 1) ^ (ret_type->isVarArrFunc == 1))
+        error_print(out, rs->pos, "Return type mismatch, there is an array in return value!");
+    if (!comp_tc_type(ret_type, tmp_type))
+        error_print(out, rs->pos, "Return type mismatch!");
 }
 
 tc_type find(std::ostream &out, std::string name, A_pos pos, bool expected_available)

@@ -31,10 +31,10 @@ tests/07_function_call.tea
 Typecheck passed!
 
 tests/08_if_bool_comp.tea
-Typecheck error in line 15, col 8: MyStruct is not comparable with int.
+Typecheck error in line 15, col 8: MyStruct scalar is not comparable with int.
 
 tests/09_not_struct.tea
-Typecheck error in line 13, col 5: a is not a struct.
+Typecheck error in line 13, col 5: this is not a struct.
 
 tests/10_comprehensive_case.tea
 Typecheck passed!
@@ -43,7 +43,7 @@ tests/11_function_multi_definition.tea
 Typecheck error in line 5, col 1: Function foo is already defined!
 
 tests/12_assign_scalar_to_array.tea
-Typecheck error in line 3, col 5: cannot assign a value to a on line 3, col 5.
+Typecheck error in line 3, col 5: cannot assign a value to a on line 3, col 5 due to isVarArrFunc mismatch.
 
 tests/13_var_type_deduce.tea
 Typecheck passed!
@@ -64,7 +64,7 @@ tests/18_func_ret_not_match.tea
 Typecheck error in line 2, col 5: Return type mismatch!
 
 tests/19_func_ret_empty.tea
-Typecheck error in line 2, col 5: Return type mismatch!
+Typecheck error in line 2, col 5: Return type mismatch! non-void function should have return value.
 
 tests/20_scope.tea
 Typecheck passed!
@@ -94,7 +94,7 @@ tests/28_call_var.tea
 Typecheck error in line 4, col 13: This function is not defined!
 
 tests/29_func_call_param_mismatch.tea
-Typecheck error in line 2, col 5: Too many parameters!
+Typecheck error in line 2, col 5: Too many parameters in function call!
 
 tests/30_func_void_not_match.tea
 Typecheck error in line 5, col 1: Function main is already defined!
@@ -121,7 +121,7 @@ tests/mytest01.tea
 Typecheck passed!
 
 tests/mytest02.tea
-Typecheck error in line 7, col 12: Array index should be int!
+Typecheck error in line 7, col 12: Array index should be int scalar!
 
 tests/mytest03.tea
 Typecheck passed!
@@ -163,13 +163,13 @@ tests/mytest15.tea
 Typecheck error in line 2, col 1: Function parameter number mismatch!
 
 tests/mytest16.tea
-Typecheck error in line 2, col 5: Return type mismatch!
+Typecheck error in line 2, col 5: Return type mismatch! non-void function should have return value.
 
 tests/mytest17.tea
 Typecheck passed!
 
 tests/mytest18.tea
-Typecheck error in line 2, col 1: Function definition on line 2 doesn't match the declaration on line ?.
+Typecheck error in line 2, col 1: void function(in declaration) bar should not have return value.
 
 tests/mytest19.tea
 Typecheck error in line 5, col 1: Function definition on line 5 doesn't match the declaration on line 4.
@@ -178,7 +178,7 @@ tests/mytest20.tea
 Typecheck passed!
 
 tests/mytest21.tea
-Typecheck error in line 4, col 5: cannot assign unknown-type value to variable a on line 4, col 5.
+Typecheck error in line 4, col 5: cannot assign void value to variable a on line 4, col 5.
 
 tests/mytest22.tea
 Typecheck passed!
@@ -187,4 +187,22 @@ tests/mytest23.tea
 Typecheck passed!
 
 tests/mytest24.tea
+Typecheck passed!
+
+tests/mytest25.tea
+Typecheck error in line 4, col 5: struct type mismatch in varDecl! (decl and def)
+
+tests/mytest26.tea
+Typecheck error in line 1, col 13: Function parameter duplicates with other function parameters.
+
+tests/mytest27.tea
+Typecheck error in line 11, col 5: cannot assign due to array type mismatch: int scalar!=int array
+
+tests/mytest28.tea
+Typecheck error in line 4, col 5: This member is not an array!
+
+tests/mytest29.tea
+Typecheck error in line 13, col 3: struct member type is null!
+
+tests/mytest30.tea
 Typecheck passed!
