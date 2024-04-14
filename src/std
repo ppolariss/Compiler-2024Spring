@@ -73,7 +73,7 @@ tests/21_global_var_define_order.tea
 Typecheck error in line 1, col 13: var a on line 1, col 13 is not defined.
 
 tests/22_func_param_dup.tea
-Typecheck error in line 1, col 5: This struct is not defined!
+Typecheck error in line 1, col 5: undefined struct type in var decl!
 
 tests/23_local_global_dup.tea
 Typecheck error in line 5, col 9: local variables duplicates with global variables.
@@ -212,3 +212,12 @@ Typecheck error in line 2, col 1: Function foo should have return value.
 
 tests/mytest32.tea
 Typecheck error in line 2, col 9: cannot assign a function to variable a on line 2, col 9.
+
+tests/mytest33.tea
+Typecheck error in line 6, col 5: cannot assign a function to struct member a on line 6, col 5.
+
+tests/mytest34.tea
+Typecheck error in line 2, col 5: struct member's scalar type is not defined struct!
+
+tests/mytest35.tea
+Typecheck error in line 8, col 5: cannot assign a function to struct member a on line 8, col 5.

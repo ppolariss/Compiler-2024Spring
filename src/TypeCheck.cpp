@@ -205,6 +205,7 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd) {
       (*currScope)[name] = tc_Type(vdecl);
       /* fill code here*/
     } break;
+
     case A_varDeclType::A_varDeclArrayKind: {
       if (!vdecl->u.declArray->id)
         error_print(out, vdecl->pos, "vdecl->u.declArray->id is null");
@@ -220,15 +221,16 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd) {
       (*currScope)[name] = arr_type;
       /* fill code here*/
     } break;
+
     default:
       error_print(out, vdecl->pos, "vdecl->kind is null");
       break;
     }
 
   } else if (vd->kind == A_varDeclStmtType::A_varDefKind) {
+    // decl and def
     if (!vd->u.varDef)
       error_print(out, vd->pos, "aA_varDeclStmt->u.varDef is null");
-    // decl and def
     aA_varDef vdef = vd->u.varDef;
     switch (vdef->kind) {
     case A_varDefType::A_varDefScalarKind: {
@@ -345,6 +347,11 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd) {
                           "value type aren't consistent in array declaration!");
           } else if (i->kind == A_arithExprValKind) {
             tc_type right_type = check_ArithExpr(out, i->u.arithExpr);
+            if (right_type->isVarArrFunc == 2)
+              error_print(out, vdef->pos,
+                          "cannot assign a function to array " + name +
+                              " on line " + std::to_string(vdef->pos->line) +
+                              ", col " + std::to_string(vdef->pos->col) + ".");
             if (!left_type) {
               left_type = right_type;
               continue;
@@ -370,7 +377,13 @@ void check_VarDecl(std::ostream &out, aA_varDeclStmt vd) {
             error_print(out, vdef->pos,
                         "array element type conflict with array type!");
         } else if (i->kind == A_arithExprValKind) {
-          if (!comp_tc_type(left_type, check_ArithExpr(out, i->u.arithExpr)))
+          tc_type right_type = check_ArithExpr(out, i->u.arithExpr);
+          if (right_type->isVarArrFunc == 2)
+            error_print(out, vdef->pos,
+                        "cannot assign a function to array " + name +
+                            " on line " + std::to_string(vdef->pos->line) +
+                            ", col " + std::to_string(vdef->pos->col) + ".");
+          if (!comp_tc_type(left_type, right_type))
             error_print(out, vdef->pos,
                         "array element type conflict with array type!");
         } else
@@ -406,6 +419,9 @@ void check_StructDef(std::ostream &out, aA_structDef sd) {
     case A_varDeclScalarKind:
       if (!i->u.declScalar || !i->u.declScalar->type)
         error_print(out, i->pos, "struct member type is null!");
+      check_struct_defined(
+          out, i->pos, i->u.declScalar->type,
+          "struct member's scalar type is not defined struct!");
       break;
     case A_varDeclArrayKind:
       if (!i->u.declArray || !i->u.declArray->type)
@@ -739,6 +755,11 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as) {
         error_print(out, as->pos,
                     "cannot assign due to array type mismatch: " +
                         get_type(actual_type) + "!=" + get_type(deduced_type));
+      if (deduced_type->isVarArrFunc == 2)
+        error_print(out, as->pos,
+                    "cannot assign a function to array member " + name +
+                        " on line " + std::to_string(as->pos->line) + ", col " +
+                        std::to_string(as->pos->col) + ".");
       break;
     default:
       error_print(out, as->pos, "Type mismatch in assignment!");
@@ -749,6 +770,7 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as) {
   case A_leftValType::A_memberValKind: {
     // a.b = 1
     actual_type = check_MemberExpr(out, as->leftVal->u.memberExpr);
+    name = *as->leftVal->u.memberExpr->memberId;
     switch (as->rightVal->kind) {
     case A_boolExprValKind: {
       check_BoolExpr(out, as->rightVal->u.boolExpr);
@@ -766,6 +788,11 @@ void check_AssignStmt(std::ostream &out, aA_assignStmt as) {
         error_print(out, as->pos,
                     "cannot assign due to type mismatch: " +
                         get_type(actual_type) + "!=" + get_type(deduced_type));
+      if (deduced_type->isVarArrFunc == 2)
+        error_print(out, as->pos,
+                    "cannot assign a function to struct member " + name +
+                        " on line " + std::to_string(as->pos->line) + ", col " +
+                        std::to_string(as->pos->col) + ".");
     } break;
 
     default:
@@ -993,6 +1020,8 @@ tc_type check_ExprUnit(std::ostream &out, aA_exprUnit eu) {
     check_FuncCall(out, eu->u.callExpr);
     // check_FuncCall will check if the function is defined
     ret = find(out, *eu->u.callExpr->fn, eu->pos, false);
+    ret = new tc_type_(*ret);
+    ret->isVarArrFunc = 0;
     /* fill code here */
   } break;
   case A_exprUnitType::A_arrayExprKind: {
