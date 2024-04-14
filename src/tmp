@@ -1,12 +1,4 @@
-yacc -o y.tab.cpp -d parser.yacc -v --debug
-clang++ -std=c++17 -g -c y.tab.cpp
-lex -o lex.yy.cpp lexer.lex 
-clang++ -std=c++17 -g -c lex.yy.cpp
 clang++ -std=c++17 -g -c TypeCheck.cpp
-clang++ -std=c++17 -g -c TeaplAst.cpp
-clang++ -std=c++17 -g -c TeaplaAst.cpp
-clang++ -std=c++17 -g -c PrintTeaplaAst.cpp
-clang++ -std=c++17 -g -c compiler.cpp
 clang++ -std=c++17 -g -o compiler y.tab.o lex.yy.o TypeCheck.o TeaplAst.o TeaplaAst.o PrintTeaplaAst.o compiler.o 
 
 tests/01_var_not_defined.tea
@@ -73,7 +65,7 @@ tests/21_global_var_define_order.tea
 Typecheck error in line 1, col 13: var a on line 1, col 13 is not defined.
 
 tests/22_func_param_dup.tea
-Typecheck error in line 1, col 5: This struct is not defined!
+Typecheck error in line 1, col 5: undefined struct type in var decl!
 
 tests/23_local_global_dup.tea
 Typecheck error in line 5, col 9: local variables duplicates with global variables.
@@ -212,3 +204,6 @@ Typecheck error in line 2, col 1: Function foo should have return value.
 
 tests/mytest32.tea
 Typecheck error in line 2, col 9: cannot assign a function to variable a on line 2, col 9.
+
+tests/mytest33.tea
+Typecheck passed!

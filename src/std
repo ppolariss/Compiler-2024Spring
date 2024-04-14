@@ -85,7 +85,7 @@ tests/25_local_param_dup.tea
 Typecheck error in line 2, col 9: local variables duplicates with function params.
 
 tests/26_scope_reuse_var.tea
-Typecheck passed!
+Typecheck error in line 1, col 1: Function foo should have return value.
 
 tests/27_empty_func_body.tea
 Typecheck passed!
@@ -124,7 +124,7 @@ tests/mytest02.tea
 Typecheck error in line 7, col 12: Array index should be int scalar!
 
 tests/mytest03.tea
-Typecheck passed!
+Typecheck error in line 4, col 1: Function main should have return value.
 
 tests/mytest04.tea
 Typecheck error in line 5, col 5: cannot assign due to type mismatch: int array!=int scalar
@@ -151,7 +151,7 @@ tests/mytest11.tea
 Typecheck error in line 2, col 9: local variables duplicates with function params.
 
 tests/mytest12.tea
-Typecheck passed!
+Typecheck error in line 1, col 1: Function foo should have return value.
 
 tests/mytest13.tea
 Typecheck error in line 14, col 1: Function foo is already defined!
@@ -187,7 +187,7 @@ tests/mytest23.tea
 Typecheck passed!
 
 tests/mytest24.tea
-Typecheck passed!
+Typecheck error in line 1, col 1: Function foo should have return value.
 
 tests/mytest25.tea
 Typecheck error in line 6, col 5: cannot assign void value to variable b on line 6, col 5.
@@ -206,3 +206,9 @@ Typecheck error in line 13, col 3: struct member type is null!
 
 tests/mytest30.tea
 Typecheck passed!
+
+tests/mytest31.tea
+Typecheck error in line 2, col 1: Function foo should have return value.
+
+tests/mytest32.tea
+Typecheck error in line 2, col 9: cannot assign a function to variable a on line 2, col 9.
