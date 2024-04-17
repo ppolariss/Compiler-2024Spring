@@ -139,7 +139,7 @@ L_binop代表的ir是四则运算相关的ir，对应ir如下：
 %dst = op i32 %left,%right 
 ```
 
-```
+```c++
 struct L_load
 {
     AS_operand *dst,*ptr;
@@ -153,7 +153,7 @@ L_load代表的是llvm ir中的load，其可以从一个地址中将对应的值
 %dst = load i32, i32* %ptr
 ```
 
-```
+```c++
 struct L_store
 {
     AS_operand *src,*ptr;
@@ -167,7 +167,7 @@ L_store代表的是llvm ir中的store，其可以对一个地址中将对应的�
 store i32 %src, i32* %ptr
 ```
 
-```
+```c++
 struct L_label
 {
     Temp_label *label;
@@ -181,7 +181,7 @@ L_label对应llvm ir中的标签，对应ir如下：
 label:
 ```
 
-```
+```c++
 struct L_jump
 {
     Temp_label *jump;
@@ -195,7 +195,7 @@ L_jump对应llvm ir中的直接跳转，对应的ir如下：
 br label %jump
 ```
 
-```
+```c++
 struct L_cmp
 {
     L_relopKind op;
@@ -211,7 +211,7 @@ L_cmp代表llvm ir中的icmp，用于得到两个数的相对关系，对应ir�
 %dst = icmp op i32 %left, %right
 ```
 
-```
+```c++
 struct L_cjump
 {
     AS_operand *dst;
@@ -226,7 +226,7 @@ L_cjump代表的是条件跳转，对应的ir如下：
 br i1 %dst, %true_label, %false_label
 ```
 
-```
+```c++
 struct L_move
 {
     AS_operand *src,*dst;
@@ -240,7 +240,7 @@ L_move代表的是移动，在llvm ir中没有表示移动的ir，所以用add 0
 %dst = add i32 %src, 0
 ```
 
-```
+```c++
 struct L_call
 {
     std::string fun;
@@ -256,7 +256,7 @@ L_call代表的是有返回的函数调用,由于我们的语言不支持结构�
 %res = call i32 @fun(args)
 ```
 
-```
+```c++
 struct L_voidcall
 {
     std::string fun;
@@ -271,7 +271,7 @@ L_voidcall代表的是不使用返回值的函数调用，对应ir如下：
 call void @fun(args)
 ```
 
-```
+```c++
 struct L_ret
 {
     AS_operand *ret;
@@ -281,7 +281,7 @@ struct L_ret
 
 L_ret代表着函数的返回，ret为空时对应的ir为```ret void```,否则对应的是：```ret i32 %ret```
 
-```
+```c++
 struct L_phi
 {
     AS_operand *dst;
@@ -292,7 +292,7 @@ struct L_phi
 
 L_phi对应的是llvm ir中的phi语句，本次实验不会用到。
 
-```
+```c++
 struct L_alloca
 {
     AS_operand *dst;
@@ -306,7 +306,7 @@ L_alloca对应的是llvm ir中的alloca语句，对应的ir如下：
 %dst = alloca <ty>
 ```
 
-```
+```c++
 struct L_gep
 {
     AS_operand *new_ptr,*base_ptr,*index;
