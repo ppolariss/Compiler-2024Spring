@@ -63,5 +63,7 @@ int ast2llvmArithBiOpExpr_first(aA_arithBiOpExpr a);
 int ast2llvmArithUExpr_first(aA_arithUExpr a);
 int ast2llvmArithExpr_first(aA_arithExpr a);
 int ast2llvmExprUnit_first(aA_exprUnit e);
+AS_operand *getArray(aA_arrayExpr arrExpr);
+AS_operand *getMember(aA_memberExpr memExpr);
 
 #endif
