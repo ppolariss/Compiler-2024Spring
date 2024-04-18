@@ -711,17 +711,19 @@ Func_local *ast2llvmFunc(aA_fnDef f)
         break;
         case A_callStmtKind:
         {
-            AS_operand *res = AS_Operand_Temp(Temp_newtemp_int());
+            // AS_operand *res = AS_Operand_Temp(Temp_newtemp_int());
             vector<AS_operand *> args;
             for (const auto &arg : codeBlockStmt->u.callStmt->fnCall->vals)
             {
                 args.push_back(ast2llvmRightVal(arg));
             }
-            emit_irs.push_back(L_Call(*codeBlockStmt->u.callStmt->fnCall->fn, res, args));
+            emit_irs.push_back(L_Voidcall(*codeBlockStmt->u.callStmt->fnCall->fn, args));
         }
         break;
         case A_ifStmtKind:
         {
+            // L_Block
+            // L_Cmp;
             // codeBlockStmt->u.ifStmt->boolExpr
         }
         break;
@@ -1090,7 +1092,19 @@ AS_operand *ast2llvmExprUnit(aA_exprUnit e)
     break;
     case A_fnCallKind:
     {
-        AS_operand *res = AS_Operand_Temp(Temp_newtemp_int());
+        AS_operand *res;
+        switch (funcReturnMap[*e->u.callExpr->fn].type)
+        {
+        case ReturnType::INT_TYPE:
+            res = AS_Operand_Temp(Temp_newtemp_int());
+            break;
+        case ReturnType::STRUCT_TYPE:
+            res = AS_Operand_Temp(Temp_newtemp_struct(funcReturnMap[*e->u.callExpr->fn].structname));
+            break;
+        default:
+            assert(0);
+            break;
+        }
         vector<AS_operand *> args;
         for (const auto &arg : e->u.callExpr->vals)
         {
@@ -1123,6 +1137,32 @@ AS_operand *ast2llvmExprUnit(aA_exprUnit e)
 
 LLVMIR::L_func *ast2llvmFuncBlock(Func_local *f)
 {
+    list<L_block *> blocks;
+    list<L_stm *> irs;
+    for (const auto &block : f->irs)
+    {
+        if (block->type == L_StmKind::T_LABEL)
+        {
+            if (!irs.empty())
+                blocks.push_back(L_Block(irs));
+            irs.clear();
+        }
+        irs.push_back(block);
+        // switch (block->type)
+        // {
+        //     if
+        // case L_StmKind::T_LABEL:
+        // {
+        //     if (!irs.empty())
+        //         blocks.push_back(L_Block(irs));
+        //     irs.clear();
+        // }
+        // break;
+        // default:
+        //     break;
+        // }
+    }
+    return new L_func(f->name, f->ret, f->args, blocks);
 }
 
 void ast2llvm_moveAlloca(LLVMIR::L_func *f)

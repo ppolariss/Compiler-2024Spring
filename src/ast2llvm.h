@@ -46,7 +46,7 @@ void ast2llvmBoolUnit(aA_boolUnit b, Temp_label *true_label, Temp_label *false_l
 void ast2llvmComOpExpr(aA_comExpr c, Temp_label *true_label, Temp_label *false_label);
 AS_operand *ast2llvmArithBiOpExpr(aA_arithBiOpExpr a);
 AS_operand *ast2llvmArithUExpr(aA_arithUExpr a);
-AS_operand *ast2llvmArithExpr(aA_arithExpr a);
+AS_operand *ast2llvmArithExpr(aA_arithExpr a);  
 AS_operand *ast2llvmExprUnit(aA_exprUnit e);
 
 LLVMIR::L_prog *ast2llvm(aA_program p);
