@@ -275,6 +275,12 @@ std::vector<LLVMIR::L_def *> ast2llvmProg_first(aA_program p)
             {
                 if (v->u.varDeclStmt->u.varDecl->kind == A_varDeclScalarKind)
                 {
+                    if (!v->u.varDeclStmt->u.varDecl->u.declScalar->type)
+                    {
+                        assert(0);
+                        // Temp_temp *temp = nullptr;
+                        // globalVarMap.emplace(*v->u.varDeclStmt->u.varDecl->u.declScalar->id, Name_newname_int(temp));
+                    }
                     if (v->u.varDeclStmt->u.varDecl->u.declScalar->type->type == A_structTypeKind)
                     {
                         globalVarMap.emplace(*v->u.varDeclStmt->u.varDecl->u.declScalar->id,
@@ -655,7 +661,7 @@ void getCodeBlockStmts(vector<aA_codeBlockStmt> stmts, string *fnname)
                     }
                     else
                     {
-                        Temp_temp *temp = Temp_newtemp_int();
+                        Temp_temp *temp = Temp_newtemp_int_ptr(0);
                         emit_irs.push_back(L_Alloca(AS_Operand_Temp(temp)));
                         localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->id, temp);
                     }
@@ -708,7 +714,7 @@ void getCodeBlockStmts(vector<aA_codeBlockStmt> stmts, string *fnname)
                             // 我们的语言没有结构体和数组的直接赋值
                             case TempType::INT_TEMP:
                             {
-                                new_var = Temp_newtemp_int();
+                                new_var = Temp_newtemp_int_ptr(0);
                                 localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id, new_var);
                                 emit_irs.push_back(L_Alloca(AS_Operand_Temp(new_var)));
                                 emit_irs.push_back(L_Store(right, AS_Operand_Temp(new_var)));
@@ -718,7 +724,7 @@ void getCodeBlockStmts(vector<aA_codeBlockStmt> stmts, string *fnname)
                             {
                                 // not get the pointer
                                 // but get the load content
-                                new_var = Temp_newtemp_int();
+                                new_var = Temp_newtemp_int_ptr(0);
                                 Temp_temp *temp = Temp_newtemp_int_ptr(0);
                                 localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id, new_var);
                                 // i think it can run
@@ -953,6 +959,10 @@ void getCodeBlockStmts(vector<aA_codeBlockStmt> stmts, string *fnname)
             next_label = Temp_newlabel();
             emit_irs.push_back(L_Jump(condition_label));
             emit_irs.push_back(L_Label(condition_label));
+            // if (body_label->name.length() == 0)
+            //     assert(0);
+            // printf("%s\n", body_label->name.c_str());
+            // assert(0);
             ast2llvmBoolExpr(codeBlockStmt->u.whileStmt->boolExpr, body_label, next_label);
             // emit_irs.push_back(L_Cjump(, body_label, next_label));
             emit_irs.push_back(L_Label(body_label));
@@ -1045,6 +1055,7 @@ AS_operand *ast2llvmLeftVal(aA_leftVal l)
         Name_name *name = globalVarMap[*l->u.id];
         if (name)
             return AS_Operand_Name(globalVarMap[*l->u.id]);
+        // both nullptr
         assert(0);
         // {
         //     emit_irs.push_back(L_Load(AS_Operand_Temp(temp_ptr), AS_Operand_Temp(temp)));
@@ -1142,7 +1153,30 @@ AS_operand *ast2llvmLeftVal(aA_leftVal l)
 
 AS_operand *ast2llvmIndexExpr(aA_indexExpr index)
 {
-    return ast2llvmIndexExpr(index);
+    switch (index->kind)
+    {
+    case A_indexExprKind::A_idIndexKind:
+    {
+        Temp_temp *idx = Temp_newtemp_int();
+        Temp_temp *temp = localVarMap[*index->u.id];
+        if (temp)
+            emit_irs.push_back(L_Load(AS_Operand_Temp(idx), AS_Operand_Temp(temp)));
+        else
+        {
+            Name_name *name = globalVarMap[*index->u.id];
+            emit_irs.push_back(L_Load(AS_Operand_Temp(idx), AS_Operand_Name(name)));
+        }
+        return AS_Operand_Temp(idx);
+    }
+    break;
+    case A_indexExprKind::A_numIndexKind:
+    {
+        return AS_Operand_Const(index->u.num);
+    }
+    default:
+        assert(0);
+        break;
+    }
 }
 
 AS_operand *ast2llvmBoolExpr(aA_boolExpr b, Temp_label *true_label, Temp_label *false_label)
@@ -1188,7 +1222,7 @@ AS_operand *ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp
         }
         else
         {
-            Temp_temp *res = Temp_newtemp_int();
+            Temp_temp *res = Temp_newtemp_int_ptr(0);
             Temp_label *next_label = Temp_newlabel();
             false_label = Temp_newlabel();
 
@@ -1225,7 +1259,7 @@ AS_operand *ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp
         }
         else
         {
-            Temp_temp *res = Temp_newtemp_int();
+            Temp_temp *res = Temp_newtemp_int_ptr(0);
             Temp_label *next_label = Temp_newlabel();
             false_label = Temp_newlabel();
 
@@ -1328,8 +1362,8 @@ AS_operand *ast2llvmComOpExpr(aA_comExpr c, Temp_label *true_label, Temp_label *
     emit_irs.push_back(L_Cmp(kind, ast2llvmExprUnit(c->left), ast2llvmExprUnit(c->right), AS_Operand_Temp(res)));
     if (true_label && false_label)
         emit_irs.push_back(L_Cjump(AS_Operand_Temp(res), true_label, false_label));
-    else
-        return AS_Operand_Temp(res);
+
+    return AS_Operand_Temp(res);
 }
 
 AS_operand *ast2llvmArithBiOpExpr(aA_arithBiOpExpr a)
