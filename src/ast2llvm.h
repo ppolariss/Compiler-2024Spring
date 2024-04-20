@@ -66,5 +66,6 @@ int ast2llvmExprUnit_first(aA_exprUnit e);
 AS_operand *getArray(aA_arrayExpr arrExpr);
 AS_operand *getMember(aA_memberExpr memExpr);
 void getCodeBlockStmts(vector<aA_codeBlockStmt> stmts, string *fnname);
+AS_operand *loadPtr(AS_operand *res);
 
 #endif
