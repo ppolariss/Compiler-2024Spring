@@ -35,7 +35,8 @@ struct Func_local
 std::vector<LLVMIR::L_def *> ast2llvmProg_first(aA_program p);
 std::vector<Func_local *> ast2llvmProg_second(aA_program p);
 Func_local *ast2llvmFunc(aA_fnDef f);
-void ast2llvmBlock(aA_codeBlockStmt b, Temp_label *con_label = nullptr, Temp_label *bre_label = nullptr);
+// void ast2llvmBlock(aA_codeBlockStmt b, Temp_label *con_label = nullptr, Temp_label *bre_label = nullptr);
+void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *con_label = nullptr, Temp_label *bre_label = nullptr);
 AS_operand *ast2llvmRightVal(aA_rightVal r);
 AS_operand *ast2llvmLeftVal(aA_leftVal l);
 AS_operand *ast2llvmIndexExpr(aA_indexExpr index);
@@ -65,7 +66,8 @@ int ast2llvmArithExpr_first(aA_arithExpr a);
 int ast2llvmExprUnit_first(aA_exprUnit e);
 AS_operand *getArray(aA_arrayExpr arrExpr);
 AS_operand *getMember(aA_memberExpr memExpr);
-void getCodeBlockStmts(vector<aA_codeBlockStmt> stmts, string *fnname);
+// void getCodeBlockStmts(vector<aA_codeBlockStmt> stmts, string *fnname);
 AS_operand *loadPtr(AS_operand *res);
+AS_operand *headPtr(AS_operand *res);
 
 #endif
