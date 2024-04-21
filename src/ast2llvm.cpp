@@ -278,6 +278,7 @@ std::vector<LLVMIR::L_def *> ast2llvmProg_first(aA_program p)
                     if (!v->u.varDeclStmt->u.varDecl->u.declScalar->type)
                     {
                         assert(0);
+                        // TODO
                         // Temp_temp *temp = nullptr;
                         // globalVarMap.emplace(*v->u.varDeclStmt->u.varDecl->u.declScalar->id, Name_newname_int(temp));
                     }
@@ -558,22 +559,26 @@ Func_local *ast2llvmFunc(aA_fnDef f)
     emit_irs.push_back(L_Label(Temp_newlabel_named(*f->fnDecl->id)));
     // emit_irs = list<L_stm *>();
     vector<Temp_temp *> args;
-    // list<L_stm *> irs;
     for (const auto &decl : f->fnDecl->paramDecl->varDecls)
     {
-        // there's no need to alloc in decl
+        // there's no need to alloc in decl ?
+        // each var in localmap is pointer
         switch (decl->kind)
         {
         case A_varDeclScalarKind:
         {
+            if (!decl->u.declScalar->type)
+                assert(0);
             switch (decl->u.declScalar->type->type)
             {
             case A_nativeTypeKind:
             {
                 Temp_temp *temp = Temp_newtemp_int();
-                // Temp_temp *temp = Temp_newtemp_int_ptr(0);
+                Temp_temp *temp_ptr = Temp_newtemp_int_ptr(0);
                 args.push_back(temp);
-                localVarMap.emplace(*decl->u.declScalar->id, temp);
+                emit_irs.push_back(L_Alloca(AS_Operand_Temp(temp_ptr)));
+                emit_irs.push_back(L_Store(AS_Operand_Temp(temp), AS_Operand_Temp(temp_ptr)));
+                localVarMap.emplace(*decl->u.declScalar->id, temp_ptr);
             }
             break;
             case A_structTypeKind:
@@ -639,14 +644,8 @@ Func_local *ast2llvmFunc(aA_fnDef f)
 void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *con_label, Temp_label *bre_label)
 {
     // void getCodeBlockStmts(vector<aA_codeBlockStmt> stmts, string *fnname)
-    // {
-    // Temp_label *con_label;
-    // Temp_label *bre_label;
     for (aA_codeBlockStmt codeBlockStmt : stmts)
     {
-        // Temp_label *con_label = Temp_newlabel();
-        // Temp_label *bre_label = Temp_newlabel();
-        // ast2llvmBlock(codeBlockStmt, con_label, bre_label);
         switch (codeBlockStmt->kind)
         {
         case A_nullStmtKind:
@@ -659,6 +658,9 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
                 {
                 case A_varDeclScalarKind:
                 {
+                    if (localVarMap.find(*codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->id) != localVarMap.end())
+                        assert(0);
+                    // no type
                     if (!codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->type)
                     {
                         // Mention! TODO
@@ -669,8 +671,9 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
                     if (codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->type->type == A_structTypeKind)
                     {
                         // pointer
-                        Temp_temp *temp = Temp_newtemp_struct(*codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->id);
-                        // emit_irs.push_back(L_Alloca(AS_Operand_Temp(temp)));
+                        // Temp_temp *temp = Temp_newtemp_struct(*codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->id);
+                        Temp_temp *temp = Temp_newtemp_struct_ptr(0, *codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->type->u.structType);
+                        emit_irs.push_back(L_Alloca(AS_Operand_Temp(temp)));
                         localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->id, temp);
                     }
                     else
@@ -683,6 +686,8 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
                 break;
                 case A_varDeclArrayKind:
                 {
+                    if (localVarMap.find(*codeBlockStmt->u.varDeclStmt->u.varDecl->u.declArray->id) != localVarMap.end())
+                        assert(0);
                     if (!codeBlockStmt->u.varDeclStmt->u.varDecl->u.declArray->type)
                     {
                         Temp_temp *temp = nullptr;
@@ -692,7 +697,6 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
                     {
                         // pointer
                         Temp_temp *temp = Temp_newtemp_struct_ptr(codeBlockStmt->u.varDeclStmt->u.varDecl->u.declArray->len, *codeBlockStmt->u.varDeclStmt->u.varDecl->u.declArray->type->u.structType);
-                        // emit_irs.push_back(L_Alloca(AS_Operand_Temp(temp)));
                         localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->id, temp);
                         emit_irs.push_back(L_Alloca(AS_Operand_Temp(temp)));
                     }
@@ -700,7 +704,6 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
                     {
                         // pointer
                         Temp_temp *temp = Temp_newtemp_int_ptr(codeBlockStmt->u.varDeclStmt->u.varDecl->u.declArray->len);
-                        // emit_irs.push_back(L_Alloca(AS_Operand_Temp(temp)));
                         localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->id, temp);
                         emit_irs.push_back(L_Alloca(AS_Operand_Temp(temp)));
                     }
@@ -720,7 +723,7 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
                     Temp_temp *new_var;
                     if (!codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->type)
                     {
-                        AS_operand *right = ast2llvmRightVal(codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->val);
+                        AS_operand *right = loadPtr(ast2llvmRightVal(codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->val));
                         switch (right->kind)
                         {
                         case OperandKind::TEMP:
@@ -738,10 +741,11 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
                             break;
                             case TempType::INT_PTR:
                             {
+                                assert(0);
                                 // not get the pointer
                                 // but get the load content
                                 new_var = Temp_newtemp_int_ptr(0);
-                                Temp_temp *temp = Temp_newtemp_int_ptr(0);
+                                Temp_temp *temp = Temp_newtemp_int();
                                 localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id, new_var);
                                 // i think it can run
                                 emit_irs.push_back(L_Load(AS_Operand_Temp(temp), right));
@@ -751,6 +755,9 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
                             }
                             case TempType::STRUCT_TEMP:
                             {
+                                assert(0);
+                                // let a struct;
+                                // let b = a;
                                 new_var = Temp_newtemp_struct(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id);
                                 // Temp_temp *temp = Temp_newtemp_struct(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id);
                                 localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id, new_var);
@@ -760,6 +767,7 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
                             }
                             case TempType::STRUCT_PTR:
                             {
+                                assert(0);
                                 new_var = Temp_newtemp_struct(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id);
                                 Temp_temp *temp = Temp_newtemp_struct_ptr(right->u.TEMP->len, *codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id);
                                 localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id, new_var);
@@ -787,15 +795,19 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
                                 break;
                             case TempType::INT_PTR:
                             {
+                                if (right->u.NAME->len != 0)
+                                    assert(0);
+                                Temp_temp *temp = Temp_newtemp_int();
                                 new_var = Temp_newtemp_int_ptr(right->u.NAME->len);
                                 localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id, new_var);
-                                emit_irs.push_back(L_Load(AS_Operand_Temp(new_var), right));
-                                // emit_irs.push_back(L_Alloca(AS_Operand_Temp(new_var)));
-                                // emit_irs.push_back(L_Store(right, AS_Operand_Temp(new_var)));
+                                emit_irs.push_back(L_Load(AS_Operand_Temp(temp), right));
+                                emit_irs.push_back(L_Alloca(AS_Operand_Temp(new_var)));
+                                emit_irs.push_back(L_Store(AS_Operand_Temp(temp), AS_Operand_Temp(new_var)));
                             }
                             break;
                             case TempType::STRUCT_TEMP:
                             {
+                                assert(0);
                                 new_var = Temp_newtemp_struct(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id);
                                 localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id, new_var);
                                 // emit_irs.push_back(L_Alloca(AS_Operand_Temp(new_var)));
@@ -804,6 +816,7 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
                             break;
                             case TempType::STRUCT_PTR:
                             {
+                                assert(0);
                                 new_var = Temp_newtemp_struct_ptr(0, *codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id);
                                 localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id, new_var);
                                 // emit_irs.push_back(L_Alloca(AS_Operand_Temp(new_var)));
@@ -811,43 +824,45 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
                             }
                             break;
                             default:
+                                assert(0);
                                 break;
                             }
                         }
                         break;
                         case OperandKind::ICONST:
                         {
+                            new_var = Temp_newtemp_int_ptr(0);
+                            emit_irs.push_back(L_Alloca(AS_Operand_Temp(new_var)));
+                            emit_irs.push_back(L_Store(right, AS_Operand_Temp(new_var)));
+                            localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id, new_var);
                         }
                         break;
                         default:
+                            assert(0);
                             break;
                         }
                         break;
                     }
+
                     switch (codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->type->type)
                     {
                     case A_structTypeKind:
                     {
+                        assert(0);
                         AS_operand *right = ast2llvmRightVal(codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->val);
                         Temp_temp *temp = Temp_newtemp_struct_ptr(0, *codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id);
-                        localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id,
-                                            temp);
+                        localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id, temp);
                         emit_irs.push_back(L_Alloca(AS_Operand_Temp(temp)));
                         emit_irs.push_back(L_Store(loadPtr(right), AS_Operand_Temp(temp)));
-                        // emit_irs.push_back(L_Move(AS_Operand_Temp(localVarMap[*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id]),
-                        //                           ast2llvmRightVal(codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->val)));
                     }
                     break;
                     case A_nativeTypeKind:
                     {
                         AS_operand *right = ast2llvmRightVal(codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->val);
-                        // example TODO
                         Temp_temp *temp = Temp_newtemp_int_ptr(0);
                         localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->id, temp);
                         emit_irs.push_back(L_Alloca(AS_Operand_Temp(temp)));
                         emit_irs.push_back(L_Store(loadPtr(right), AS_Operand_Temp(temp)));
-                        // emit_irs.push_back(L_Move(AS_Operand_Temp(temp),
-                        //                           ast2llvmRightVal(codeBlockStmt->u.varDeclStmt->u.varDef->u.defScalar->val)));
                     }
                     break;
                     default:
@@ -858,45 +873,69 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
                 break;
                 case A_varDefArrayKind:
                 {
+                    Temp_temp *new_arr;
+                    auto vals = codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->vals;
+                    int len = vals.size();
+                    string id = *codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->id;
+                    string structType = "";
+                    if (len != codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->len)
+                        assert(0); // really?
+
                     if (!codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->type)
                     {
-                        // Temp_temp *temp = nullptr;
-                        // localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->id,
-                        //                     temp);
+                        auto first = loadPtr(ast2llvmRightVal(vals[0]));
+                        switch (first->kind)
+                        {
+                        case OperandKind::TEMP:
+                        {
+                            switch (first->u.TEMP->type)
+                            {
+                            case TempType::INT_TEMP:
+                                new_arr = Temp_newtemp_int_ptr(len);
+                                break;
+                            case TempType::STRUCT_TEMP:
+                                structType = *codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->type->u.structType;
+                                new_arr = Temp_newtemp_struct_ptr(len, structType);
+                                break;
+                            default:
+                                assert(0);
+                                break;
+                            }
+                        }
+                        break;
+                        case OperandKind::ICONST:
+                            new_arr = Temp_newtemp_int_ptr(len);
+                            break;
+                        default:
+                            assert(0);
+                            break;
+                        }
+                        localVarMap.emplace(id, new_arr);
+                        emit_irs.push_back(L_Alloca(AS_Operand_Temp(new_arr)));
+                        put_right_vals_into_array(new_arr, vals, len, new_arr->type, structType);
                     }
+
                     switch (codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->type->type)
                     {
                     case A_structTypeKind:
                     {
-                        Temp_temp *temp = Temp_newtemp_struct_ptr(codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->len, *codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->id);
-                        localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->id, temp);
-                        emit_irs.push_back(L_Alloca(AS_Operand_Temp(temp)));
-                        int len = codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->vals.size();
-                        for (int i = 0; i < len; i++)
-                        {
-                            Temp_temp *struct_ptr = Temp_newtemp_struct_ptr(0, *codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->id);
-                            emit_irs.push_back(L_Gep(AS_Operand_Temp(struct_ptr), AS_Operand_Temp(temp), AS_Operand_Const(i)));
-                            emit_irs.push_back(L_Store(loadPtr(ast2llvmRightVal(codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->vals[i])),
-                                                       AS_Operand_Temp(struct_ptr)));
-                        }
+                        structType = *codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->type->u.structType;
+                        new_arr = Temp_newtemp_struct_ptr(len, structType);
+                        localVarMap.emplace(id, new_arr);
+                        emit_irs.push_back(L_Alloca(AS_Operand_Temp(new_arr)));
+                        put_right_vals_into_array(new_arr, vals, len, TempType::STRUCT_PTR, structType);
                     }
                     break;
                     case A_nativeTypeKind:
                     {
-                        Temp_temp *temp = Temp_newtemp_int_ptr(codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->len);
-                        localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->id, temp);
-                        emit_irs.push_back(L_Alloca(AS_Operand_Temp(temp)));
-                        int len = codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->vals.size();
-                        for (int i = 0; i < len; i++)
-                        {
-                            Temp_temp *int_ptr = Temp_newtemp_int_ptr(0);
-                            emit_irs.push_back(L_Gep(AS_Operand_Temp(int_ptr), AS_Operand_Temp(temp), AS_Operand_Const(i)));
-                            emit_irs.push_back(L_Store(loadPtr(ast2llvmRightVal(codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->vals[i])),
-                                                       AS_Operand_Temp(int_ptr)));
-                        }
+                        new_arr = Temp_newtemp_int_ptr(len);
+                        localVarMap.emplace(id, new_arr);
+                        emit_irs.push_back(L_Alloca(AS_Operand_Temp(new_arr)));
+                        put_right_vals_into_array(new_arr, vals, len, TempType::INT_PTR);
                     }
                     break;
                     default:
+                        assert(0);
                         break;
                     }
                 }
@@ -912,22 +951,21 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
         {
             emit_irs.push_back(L_Store(loadPtr(ast2llvmRightVal(codeBlockStmt->u.assignStmt->rightVal)),
                                        ast2llvmLeftVal(codeBlockStmt->u.assignStmt->leftVal)));
-            // emit_irs.push_back(L_Move(ast2llvmRightVal(codeBlockStmt->u.assignStmt->rightVal),
-            //                           ast2llvmLeftVal(codeBlockStmt->u.assignStmt->leftVal)));
         }
         break;
         case A_callStmtKind:
         {
-            // AS_operand *res = AS_Operand_Temp(Temp_newtemp_int());
             vector<AS_operand *> args;
             for (const auto &arg : codeBlockStmt->u.callStmt->fnCall->vals)
             {
-                AS_operand *res = headPtr(loadPtr(ast2llvmRightVal(arg)));
+                AS_operand *res = (loadPtr(ast2llvmRightVal(arg)));
                 args.push_back(res);
             }
             emit_irs.push_back(L_Voidcall(*codeBlockStmt->u.callStmt->fnCall->fn, args));
         }
         break;
+            // below to refactor
+
         case A_ifStmtKind:
         {
             Temp_label *true_label = Temp_newlabel();
@@ -965,12 +1003,17 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
         break;
         case A_returnStmtKind:
         {
-            emit_irs.push_back(L_Ret(loadPtr(ast2llvmRightVal(codeBlockStmt->u.returnStmt->retVal))));
+            if (!codeBlockStmt->u.returnStmt->retVal)
+                emit_irs.push_back(L_Ret(nullptr));
+            else
+            {
+                emit_irs.push_back(L_Ret(loadPtr(ast2llvmRightVal(codeBlockStmt->u.returnStmt->retVal))));
+            }
         }
         break;
         case A_continueStmtKind:
         {
-            printf("%s\n", con_label->name.c_str());
+            // printf("%s\n", con_label->name.c_str());
             emit_irs.push_back(L_Jump(con_label));
         }
         break;
@@ -986,8 +1029,11 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
     }
 }
 
+// try to return val
 AS_operand *ast2llvmRightVal(aA_rightVal r)
 {
+    if (!r)
+        assert(0);
     switch (r->kind)
     {
     case A_arithExprValKind:
@@ -1002,6 +1048,7 @@ AS_operand *ast2llvmRightVal(aA_rightVal r)
     }
     break;
     default:
+        assert(0);
         break;
     }
 }
@@ -1084,6 +1131,12 @@ AS_operand *ast2llvmLeftVal(aA_leftVal l)
                 new_ptr = AS_Operand_Temp(Temp_newtemp_int_ptr(0));
                 break;
             case TempType::STRUCT_PTR:
+                new_ptr = AS_Operand_Temp(Temp_newtemp_struct_ptr(0, leftval->u.NAME->structname));
+                break;
+            case TempType::INT_TEMP:
+                new_ptr = AS_Operand_Temp(Temp_newtemp_int_ptr(0));
+                break;
+            case TempType::STRUCT_TEMP:
                 new_ptr = AS_Operand_Temp(Temp_newtemp_struct_ptr(0, leftval->u.NAME->structname));
                 break;
             default:
@@ -1325,6 +1378,7 @@ AS_operand *ast2llvmBoolUnit(aA_boolUnit b, Temp_label *true_label, Temp_label *
         assert(0);
         break;
     }
+    return nullptr;
 }
 
 AS_operand *ast2llvmBoolUOpExpr(aA_boolUOpExpr b, Temp_label *true_label, Temp_label *false_label)
@@ -1452,7 +1506,9 @@ AS_operand *ast2llvmExprUnit(aA_exprUnit e)
         if (temp_var)
             return AS_Operand_Temp(temp_var);
         Name_name *name_var = globalVarMap[*e->u.id];
-        return AS_Operand_Name(name_var);
+        if (name_var)
+            return AS_Operand_Name(name_var);
+        assert(0);
     }
     break;
     case A_arithExprKind:
@@ -1478,7 +1534,7 @@ AS_operand *ast2llvmExprUnit(aA_exprUnit e)
         vector<AS_operand *> args;
         for (const auto &arg : e->u.callExpr->vals)
         {
-            args.push_back(headPtr(ast2llvmRightVal(arg)));
+            args.push_back(loadPtr(ast2llvmRightVal(arg)));
         }
         emit_irs.push_back(L_Call(*e->u.callExpr->fn, res, args));
         return res;
@@ -1616,14 +1672,14 @@ AS_operand *getMember(aA_memberExpr memberExpr)
     {
     case OperandKind::TEMP:
     {
-        if (leftval->u.TEMP->type != TempType::STRUCT_PTR)
+        if (leftval->u.TEMP->type != TempType::STRUCT_PTR && leftval->u.TEMP->type != TempType::STRUCT_TEMP)
             assert(0);
         name = leftval->u.TEMP->structname;
     }
     break;
     case OperandKind::NAME:
     {
-        if (leftval->u.NAME->type != TempType::STRUCT_PTR)
+        if (leftval->u.NAME->type != TempType::STRUCT_PTR && leftval->u.NAME->type != TempType::STRUCT_TEMP)
             assert(0);
         name = leftval->u.NAME->structname;
     }
@@ -1632,108 +1688,264 @@ AS_operand *getMember(aA_memberExpr memberExpr)
         assert(0);
         break;
     }
-    int offset = structInfoMap[name].memberinfos[*memberExpr->memberId].offset;
-    new_ptr = AS_Operand_Temp(Temp_newtemp_struct_ptr(0, name));
+    auto member = structInfoMap[name].memberinfos[*memberExpr->memberId];
+    int offset = member.offset;
+    switch (member.def.kind)
+    {
+    case TempType::INT_TEMP:
+        new_ptr = AS_Operand_Temp(Temp_newtemp_int());
+        break;
+    case TempType::INT_PTR:
+        new_ptr = AS_Operand_Temp(Temp_newtemp_int_ptr(member.def.len));
+        break;
+    case TempType::STRUCT_TEMP:
+        new_ptr = AS_Operand_Temp(Temp_newtemp_struct(member.def.structname));
+        break;
+    case TempType::STRUCT_PTR:
+        new_ptr = AS_Operand_Temp(Temp_newtemp_struct_ptr(member.def.len, member.def.structname));
+        break;
+    default:
+        assert(0);
+        break;
+    }
+
     emit_irs.push_back(L_Gep(new_ptr, leftval, AS_Operand_Const(offset)));
     return new_ptr;
 }
 
+// if ptr->ret val
+// else ret self
 AS_operand *loadPtr(AS_operand *res)
 {
     switch (res->kind)
     {
     case OperandKind::TEMP:
     {
-        if (res->u.TEMP->type == TempType::INT_PTR)
+        switch (res->u.TEMP->type)
         {
-            // if (res->u.TEMP->len == 0)
-            // {
-            Temp_temp *temp = Temp_newtemp_int();
-            emit_irs.push_back(L_Load(AS_Operand_Temp(temp), res));
-            return AS_Operand_Temp(temp);
-            // }
-            // else
-            // {
-            //     return AS_Operand_Temp(Temp_newtemp_int_ptr(-1));
-            // }
+        case TempType::INT_PTR:
+        {
+            if (res->u.TEMP->len == 0)
+            {
+                Temp_temp *temp = Temp_newtemp_int();
+                emit_irs.push_back(L_Load(AS_Operand_Temp(temp), res));
+                return AS_Operand_Temp(temp);
+            }
+            else
+            {
+                Temp_temp *temp = Temp_newtemp_int_ptr(0);
+                emit_irs.push_back(L_Gep(AS_Operand_Temp(temp), res, AS_Operand_Const(0)));
+                temp->len = -1;
+                return AS_Operand_Temp(temp);
+            }
         }
-        else
-            return res;
+        break;
+        case TempType::STRUCT_PTR:
+        {
+            if (res->u.TEMP->len == 0)
+            {
+                // Temp_temp *temp = Temp_newtemp_struct(res->u.TEMP->structname);
+                // emit_irs.push_back(L_Load(AS_Operand_Temp(temp), res));
+                // return AS_Operand_Temp(temp);
+            }
+            else
+            {
+                Temp_temp *temp = Temp_newtemp_struct_ptr(0, res->u.TEMP->structname);
+                emit_irs.push_back(L_Gep(AS_Operand_Temp(temp), res, AS_Operand_Const(0)));
+                temp->len = -1;
+                return AS_Operand_Temp(temp);
+            }
+        }
+        case TempType::INT_TEMP:
+            break;
+        case TempType::STRUCT_TEMP:
+            break;
+        default:
+            assert(0);
+            break;
+        }
+
+        return res;
     }
     break;
     case OperandKind::NAME:
     {
-        if (res->u.NAME->type == TempType::INT_PTR)
+        switch (res->u.NAME->type)
         {
+        case TempType::INT_PTR:
+        {
+            if (res->u.NAME->len == 0)
+            {
+                Temp_temp *temp = Temp_newtemp_int();
+                emit_irs.push_back(L_Load(AS_Operand_Temp(temp), res));
+                return AS_Operand_Temp(temp);
+            }
+            else
+            {
+                Temp_temp *temp = Temp_newtemp_int_ptr(0);
+                emit_irs.push_back(L_Gep(AS_Operand_Temp(temp), res, AS_Operand_Const(0)));
+                temp->len = -1;
+                return AS_Operand_Temp(temp);
+            }
+        }
+        break;
+        case TempType::INT_TEMP:
+        {
+            // TODO
             Temp_temp *temp = Temp_newtemp_int();
             emit_irs.push_back(L_Load(AS_Operand_Temp(temp), res));
             return AS_Operand_Temp(temp);
+            // Temp_temp *temp = Temp_newtemp_int_ptr(0);
+            // emit_irs.push_back(L_Store(res, AS_Operand_Temp(temp)));
+            // Temp_temp *temp2 = Temp_newtemp_int();
+            // emit_irs.push_back(L_Load(AS_Operand_Temp(temp2), AS_Operand_Temp(temp)));
+            // return AS_Operand_Temp(temp2);
         }
-        else if (res->u.NAME->type == TempType::INT_TEMP)
+        break;
+        case TempType::STRUCT_TEMP:
         {
-            Temp_temp *temp = Temp_newtemp_int();
-            emit_irs.push_back(L_Load(AS_Operand_Temp(temp), res));
-            return AS_Operand_Temp(temp);
+            // load only for i32!!
+            // Temp_temp *temp = Temp_newtemp_struct(res->u.NAME->structname);
+            // emit_irs.push_back(L_Load(AS_Operand_Temp(temp), res));
+            // return AS_Operand_Temp(temp);
         }
-        else
+        break;
+        case TempType::STRUCT_PTR:
         {
-            return res;
+            if (res->u.NAME->len == 0)
+            {
+                // Temp_temp *temp = Temp_newtemp_struct(res->u.TEMP->structname);
+                // emit_irs.push_back(L_Load(AS_Operand_Temp(temp), res));
+                // return AS_Operand_Temp(temp);
+            }
+            else
+            {
+                Temp_temp *temp = Temp_newtemp_struct_ptr(0, res->u.NAME->structname);
+                emit_irs.push_back(L_Gep(AS_Operand_Temp(temp), res, AS_Operand_Const(0)));
+                temp->len = -1;
+                return AS_Operand_Temp(temp);
+            }
         }
+        break;
+        default:
+            break;
+        }
+        return res;
+
+        // else if (res->u.NAME->type == TempType::INT_TEMP)
+        // {
+        //     Temp_temp *temp = Temp_newtemp_int();
+        //     emit_irs.push_back(L_Load(AS_Operand_Temp(temp), res));
+        //     return AS_Operand_Temp(temp);
+        // }
     }
     break;
-    default:
+    case OperandKind::ICONST:
         return res;
+        break;
+    default:
+        assert(0);
         break;
     }
 }
 
 AS_operand *headPtr(AS_operand *res)
 {
-    Temp_temp *temp;
-    switch (res->kind)
+    // // TODO
+    // // get array's head pointer
+    // Temp_temp *temp;
+    // switch (res->kind)
+    // {
+    // case OperandKind::TEMP:
+    // {
+    //     if (res->u.TEMP->type == TempType::INT_PTR)
+    //     {
+    //         temp = Temp_newtemp_int_ptr(0);
+    //         emit_irs.push_back(L_Gep(AS_Operand_Temp(temp), res, AS_Operand_Const(0)));
+    //         // temp->u.TEMP->type = TempType::INT_PTR;
+    //         // temp->u.TEMP->num = res->u.TEMP->num;
+    //         // temp->u.TEMP->len = -1;
+    //         temp->len = -1;
+    //         return AS_Operand_Temp(temp);
+    //     }
+    //     else if (res->u.TEMP->type == TempType::STRUCT_PTR)
+    //     {
+    //         // temp->u.TEMP->type = TempType::STRUCT_PTR;
+    //         // temp->u.TEMP->structname = res->u.TEMP->structname;
+    //         // temp->u.TEMP->len = -1;
+    //         // return temp;
+    //         temp = Temp_newtemp_struct_ptr(0, res->u.TEMP->structname);
+    //         emit_irs.push_back(L_Gep(AS_Operand_Temp(temp), res, AS_Operand_Const(0)));
+    //         temp->len = -1;
+    //         return AS_Operand_Temp(temp);
+    //     }
+    //     return res;
+    // }
+    // break;
+    // case OperandKind::NAME:
+    // {
+    //     break;
+    //     assert(0);
+    //     if (res->u.NAME->type == TempType::INT_PTR)
+    //     {
+    //         res->u.NAME->len = -1;
+    //     }
+    //     else if (res->u.NAME->type == TempType::STRUCT_PTR)
+    //     {
+    //         res->u.NAME->len = -1;
+    //     }
+    //     return res;
+    // }
+    // break;
+    // default:
+    //     return res;
+    //     break;
+    // }
+}
+
+void put_right_vals_into_array(Temp_temp *new_arr, vector<aA_rightVal> vals, int len, TempType type, string structname)
+{
+    switch (type)
     {
-    case OperandKind::TEMP:
+    case TempType::INT_PTR:
     {
-        if (res->u.TEMP->type == TempType::INT_PTR)
+        for (int i = 0; i < len; i++)
         {
-            temp = Temp_newtemp_int_ptr(0);
-            emit_irs.push_back(L_Gep(AS_Operand_Temp(temp), res, AS_Operand_Const(0)));
-            // temp->u.TEMP->type = TempType::INT_PTR;
-            // temp->u.TEMP->num = res->u.TEMP->num;
-            // temp->u.TEMP->len = -1;
-            temp->len = -1;
-            return AS_Operand_Temp(temp);
+            Temp_temp *int_ptr = Temp_newtemp_int_ptr(0);
+            emit_irs.push_back(L_Gep(AS_Operand_Temp(int_ptr), AS_Operand_Temp(new_arr), AS_Operand_Const(i)));
+
+            AS_operand *temp = loadPtr(ast2llvmRightVal(vals[i]));
+            switch (temp->kind)
+            {
+            case OperandKind::TEMP:
+                if (temp->u.TEMP->type != TempType::INT_TEMP)
+                    assert(0);
+                break;
+            case OperandKind::ICONST:
+                break;
+            default:
+                assert(0);
+                break;
+            }
+            emit_irs.push_back(L_Store(temp, AS_Operand_Temp(int_ptr)));
         }
-        else if (res->u.TEMP->type == TempType::STRUCT_PTR)
-        {
-            // temp->u.TEMP->type = TempType::STRUCT_PTR;
-            // temp->u.TEMP->structname = res->u.TEMP->structname;
-            // temp->u.TEMP->len = -1;
-            // return temp;
-            temp = Temp_newtemp_struct_ptr(0, res->u.TEMP->structname);
-            emit_irs.push_back(L_Gep(AS_Operand_Temp(temp), res, AS_Operand_Const(0)));
-            temp->len = -1;
-            return AS_Operand_Temp(temp);
-        }
-        return res;
     }
     break;
-    case OperandKind::NAME:
+    case TempType::STRUCT_PTR:
     {
-        assert(0);
-        if (res->u.NAME->type == TempType::INT_PTR)
+        for (int i = 0; i < len; i++)
         {
-            res->u.NAME->len = -1;
+            Temp_temp *struct_ptr = Temp_newtemp_struct_ptr(0, structname);
+            emit_irs.push_back(L_Gep(AS_Operand_Temp(struct_ptr), AS_Operand_Temp(new_arr), AS_Operand_Const(i)));
+            AS_operand *temp = loadPtr(ast2llvmRightVal(vals[i]));
+            if (temp->kind != OperandKind::TEMP || temp->u.TEMP->type != TempType::STRUCT_TEMP)
+                assert(0);
+            emit_irs.push_back(L_Store(temp, AS_Operand_Temp(struct_ptr)));
         }
-        else if (res->u.NAME->type == TempType::STRUCT_PTR)
-        {
-            res->u.NAME->len = -1;
-        }
-        return res;
     }
     break;
     default:
-        return res;
+        assert(0);
         break;
     }
 }

@@ -69,5 +69,6 @@ AS_operand *getMember(aA_memberExpr memExpr);
 // void getCodeBlockStmts(vector<aA_codeBlockStmt> stmts, string *fnname);
 AS_operand *loadPtr(AS_operand *res);
 AS_operand *headPtr(AS_operand *res);
+void put_right_vals_into_array(Temp_temp *new_arr, vector<aA_rightVal> vals, int len, TempType type, string structname = "");
 
 #endif
