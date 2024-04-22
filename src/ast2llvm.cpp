@@ -970,22 +970,24 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
         {
             Temp_label *true_label = Temp_newlabel();
             Temp_label *false_label = Temp_newlabel();
-            bre_label = Temp_newlabel();
+            Temp_label *next_label = Temp_newlabel();
             ast2llvmBoolExpr(codeBlockStmt->u.ifStmt->boolExpr, true_label, false_label);
             // emit_irs.push_back(L_Cjump(, true_label, false_label));
             emit_irs.push_back(L_Label(true_label));
             ast2llvmBlock(codeBlockStmt->u.ifStmt->ifStmts, fnname, con_label, bre_label);
-            emit_irs.push_back(L_Jump(bre_label));
+            emit_irs.push_back(L_Jump(next_label));
             emit_irs.push_back(L_Label(false_label));
             ast2llvmBlock(codeBlockStmt->u.ifStmt->elseStmts, fnname, con_label, bre_label);
-            emit_irs.push_back(L_Jump(bre_label));
-            emit_irs.push_back(L_Label(bre_label));
+            emit_irs.push_back(L_Jump(next_label));
+            emit_irs.push_back(L_Label(next_label));
         }
         break;
         case A_whileStmtKind:
         {
+            // condition
             con_label = Temp_newlabel();
             Temp_label *body_label = Temp_newlabel();
+            // next
             bre_label = Temp_newlabel();
             emit_irs.push_back(L_Jump(con_label));
             emit_irs.push_back(L_Label(con_label));
@@ -1260,7 +1262,10 @@ AS_operand *ast2llvmBoolExpr(aA_boolExpr b, Temp_label *true_label, Temp_label *
     break;
     case A_boolUnitKind:
     {
-        return ast2llvmBoolUnit(b->u.boolUnit, true_label, false_label);
+        if (true_label && false_label)
+            return ast2llvmBoolUnit(b->u.boolUnit, true_label, false_label);
+        else
+            return ast2llvmBoolUnit(b->u.boolUnit, nullptr, nullptr);
     }
     break;
     default:
@@ -1378,6 +1383,7 @@ AS_operand *ast2llvmBoolUnit(aA_boolUnit b, Temp_label *true_label, Temp_label *
         assert(0);
         break;
     }
+    assert(0);
     return nullptr;
 }
 
