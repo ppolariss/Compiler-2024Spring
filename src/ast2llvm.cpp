@@ -1292,6 +1292,8 @@ AS_operand *ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp
         }
         else
         {
+            // rightval rather than br
+            assert(0);
             Temp_temp *res = Temp_newtemp_int_ptr(0);
             Temp_label *next_label = Temp_newlabel();
             false_label = Temp_newlabel();
@@ -1329,6 +1331,7 @@ AS_operand *ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp
         }
         else
         {
+            assert(0);
             Temp_temp *res = Temp_newtemp_int_ptr(0);
             Temp_label *next_label = Temp_newlabel();
             false_label = Temp_newlabel();
