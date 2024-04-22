@@ -1699,13 +1699,13 @@ AS_operand *getMember(aA_memberExpr memberExpr)
     switch (member.def.kind)
     {
     case TempType::INT_TEMP:
-        new_ptr = AS_Operand_Temp(Temp_newtemp_int());
+        new_ptr = AS_Operand_Temp(Temp_newtemp_int_ptr(0));
         break;
     case TempType::INT_PTR:
         new_ptr = AS_Operand_Temp(Temp_newtemp_int_ptr(member.def.len));
         break;
     case TempType::STRUCT_TEMP:
-        new_ptr = AS_Operand_Temp(Temp_newtemp_struct(member.def.structname));
+        new_ptr = AS_Operand_Temp(Temp_newtemp_struct_ptr(0, member.def.structname));
         break;
     case TempType::STRUCT_PTR:
         new_ptr = AS_Operand_Temp(Temp_newtemp_struct_ptr(member.def.len, member.def.structname));
@@ -1716,6 +1716,8 @@ AS_operand *getMember(aA_memberExpr memberExpr)
     }
 
     emit_irs.push_back(L_Gep(new_ptr, leftval, AS_Operand_Const(offset)));
+    // printf("member: %s\n", memberExpr->memberId->c_str());
+    // printf("%d\n", member.def.kind);
     return new_ptr;
 }
 
