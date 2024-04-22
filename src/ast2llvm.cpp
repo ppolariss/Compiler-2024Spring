@@ -632,8 +632,22 @@ Func_local *ast2llvmFunc(aA_fnDef f)
     // TODO
     // only in order to avoid one label in the end
     LLVMIR::FuncType retType = funcReturnMap[*f->fnDecl->id];
-    if (retType.type == ReturnType::VOID_TYPE)
+    switch (retType.type)
+    {
+    case ReturnType::VOID_TYPE:
         emit_irs.push_back(L_Ret(nullptr));
+        break;
+    case ReturnType::INT_TYPE:
+        emit_irs.push_back(L_Ret(AS_Operand_Const(0)));
+        break;
+    case ReturnType::STRUCT_TYPE:
+        // emit_irs.push_back(L_Ret(AS_Operand_Temp(Temp_newtemp_struct_ptr(0, retType.structname))));
+        assert(0);
+        break;
+    default:
+        assert(0);
+        break;
+    }
 
     // in order not to clear? TODO
     return new Func_local(*f->fnDecl->id, retType, args, *new list<L_stm *>(emit_irs));
@@ -1293,7 +1307,7 @@ AS_operand *ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp
         else
         {
             // rightval rather than br
-            assert(0);
+            // assert(0);
             Temp_temp *res = Temp_newtemp_int_ptr(0);
             Temp_label *next_label = Temp_newlabel();
             false_label = Temp_newlabel();
@@ -1306,7 +1320,7 @@ AS_operand *ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp
             emit_irs.push_back(L_Cjump(r, false_label, next_label));
             emit_irs.push_back(L_Label(false_label));
             emit_irs.push_back(L_Store(AS_Operand_Const(1), AS_Operand_Temp(res)));
-
+            emit_irs.push_back(L_Jump(next_label));
             emit_irs.push_back(L_Label(next_label));
 
             return AS_Operand_Temp(res);
@@ -1331,7 +1345,7 @@ AS_operand *ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp
         }
         else
         {
-            assert(0);
+            // assert(0);
             Temp_temp *res = Temp_newtemp_int_ptr(0);
             Temp_label *next_label = Temp_newlabel();
             false_label = Temp_newlabel();
@@ -1344,7 +1358,7 @@ AS_operand *ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp
             emit_irs.push_back(L_Cjump(r, next_label, false_label));
             emit_irs.push_back(L_Label(false_label));
             emit_irs.push_back(L_Store(AS_Operand_Const(0), AS_Operand_Temp(res)));
-
+            emit_irs.push_back(L_Jump(next_label));
             emit_irs.push_back(L_Label(next_label));
 
             return AS_Operand_Temp(res);
