@@ -641,6 +641,7 @@ Func_local *ast2llvmFunc(aA_fnDef f)
         emit_irs.push_back(L_Ret(AS_Operand_Const(0)));
         break;
     case ReturnType::STRUCT_TYPE:
+        // 悬垂指针
         // emit_irs.push_back(L_Ret(AS_Operand_Temp(Temp_newtemp_struct_ptr(0, retType.structname))));
         assert(0);
         break;
@@ -1022,19 +1023,20 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, string *fnname, Temp_label *c
             if (!codeBlockStmt->u.returnStmt->retVal)
                 emit_irs.push_back(L_Ret(nullptr));
             else
-            {
                 emit_irs.push_back(L_Ret(loadPtr(ast2llvmRightVal(codeBlockStmt->u.returnStmt->retVal))));
-            }
         }
         break;
         case A_continueStmtKind:
         {
-            // printf("%s\n", con_label->name.c_str());
+            if (!con_label)
+                assert(0);
             emit_irs.push_back(L_Jump(con_label));
         }
         break;
         case A_breakStmtKind:
         {
+            if (!bre_label)
+                assert(0);
             emit_irs.push_back(L_Jump(bre_label));
         }
         break;
