@@ -1264,7 +1264,7 @@ AS_operand *ast2llvmIndexExpr(aA_indexExpr index)
 
 AS_operand *ast2llvmBoolExpr(aA_boolExpr b, Temp_label *true_label, Temp_label *false_label)
 {
-    // if nullptr return value/
+    // if nullptr return value
     // else br
     switch (b->kind)
     {
@@ -1327,11 +1327,6 @@ AS_operand *ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp
 
             return AS_Operand_Temp(res);
         }
-        // ast2llvmBoolExpr(b->left, true_label, false_label);
-
-        // emit_irs.push_back(L_Cjump()
-        // emit_irs.push_back(L_CJump(L_relopKind::T_eq, l, AS_Operand_Const(1), true_label, false_label));
-        // emit_irs.push_back(L_CJump(L_relopKind::T_eq, r, AS_Operand_Const(1), true_label, false_label));
     }
     break;
     case A_or:
@@ -1365,8 +1360,6 @@ AS_operand *ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp
 
             return AS_Operand_Temp(res);
         }
-        // emit_irs.push_back(L_CJump(L_relopKind::T_eq, l, AS_Operand_Const(1), true_label, false_label));
-        // emit_irs.push_back(L_CJump(L_relopKind::T_eq, r, AS_Operand_Const(1), true_label, false_label));
     }
     break;
     default:
@@ -1550,6 +1543,7 @@ AS_operand *ast2llvmExprUnit(aA_exprUnit e)
             res = AS_Operand_Temp(Temp_newtemp_int());
             break;
         case ReturnType::STRUCT_TYPE:
+            // assert(0);
             res = AS_Operand_Temp(Temp_newtemp_struct(funcReturnMap[*e->u.callExpr->fn].structname));
             break;
         default:
@@ -1876,59 +1870,59 @@ AS_operand *loadPtr(AS_operand *res)
     }
 }
 
-AS_operand *headPtr(AS_operand *res)
-{
-    // // TODO
-    // // get array's head pointer
-    // Temp_temp *temp;
-    // switch (res->kind)
-    // {
-    // case OperandKind::TEMP:
-    // {
-    //     if (res->u.TEMP->type == TempType::INT_PTR)
-    //     {
-    //         temp = Temp_newtemp_int_ptr(0);
-    //         emit_irs.push_back(L_Gep(AS_Operand_Temp(temp), res, AS_Operand_Const(0)));
-    //         // temp->u.TEMP->type = TempType::INT_PTR;
-    //         // temp->u.TEMP->num = res->u.TEMP->num;
-    //         // temp->u.TEMP->len = -1;
-    //         temp->len = -1;
-    //         return AS_Operand_Temp(temp);
-    //     }
-    //     else if (res->u.TEMP->type == TempType::STRUCT_PTR)
-    //     {
-    //         // temp->u.TEMP->type = TempType::STRUCT_PTR;
-    //         // temp->u.TEMP->structname = res->u.TEMP->structname;
-    //         // temp->u.TEMP->len = -1;
-    //         // return temp;
-    //         temp = Temp_newtemp_struct_ptr(0, res->u.TEMP->structname);
-    //         emit_irs.push_back(L_Gep(AS_Operand_Temp(temp), res, AS_Operand_Const(0)));
-    //         temp->len = -1;
-    //         return AS_Operand_Temp(temp);
-    //     }
-    //     return res;
-    // }
-    // break;
-    // case OperandKind::NAME:
-    // {
-    //     break;
-    //     assert(0);
-    //     if (res->u.NAME->type == TempType::INT_PTR)
-    //     {
-    //         res->u.NAME->len = -1;
-    //     }
-    //     else if (res->u.NAME->type == TempType::STRUCT_PTR)
-    //     {
-    //         res->u.NAME->len = -1;
-    //     }
-    //     return res;
-    // }
-    // break;
-    // default:
-    //     return res;
-    //     break;
-    // }
-}
+// AS_operand *headPtr(AS_operand *res)
+// {
+// // TODO
+// // get array's head pointer
+// Temp_temp *temp;
+// switch (res->kind)
+// {
+// case OperandKind::TEMP:
+// {
+//     if (res->u.TEMP->type == TempType::INT_PTR)
+//     {
+//         temp = Temp_newtemp_int_ptr(0);
+//         emit_irs.push_back(L_Gep(AS_Operand_Temp(temp), res, AS_Operand_Const(0)));
+//         // temp->u.TEMP->type = TempType::INT_PTR;
+//         // temp->u.TEMP->num = res->u.TEMP->num;
+//         // temp->u.TEMP->len = -1;
+//         temp->len = -1;
+//         return AS_Operand_Temp(temp);
+//     }
+//     else if (res->u.TEMP->type == TempType::STRUCT_PTR)
+//     {
+//         // temp->u.TEMP->type = TempType::STRUCT_PTR;
+//         // temp->u.TEMP->structname = res->u.TEMP->structname;
+//         // temp->u.TEMP->len = -1;
+//         // return temp;
+//         temp = Temp_newtemp_struct_ptr(0, res->u.TEMP->structname);
+//         emit_irs.push_back(L_Gep(AS_Operand_Temp(temp), res, AS_Operand_Const(0)));
+//         temp->len = -1;
+//         return AS_Operand_Temp(temp);
+//     }
+//     return res;
+// }
+// break;
+// case OperandKind::NAME:
+// {
+//     break;
+//     assert(0);
+//     if (res->u.NAME->type == TempType::INT_PTR)
+//     {
+//         res->u.NAME->len = -1;
+//     }
+//     else if (res->u.NAME->type == TempType::STRUCT_PTR)
+//     {
+//         res->u.NAME->len = -1;
+//     }
+//     return res;
+// }
+// break;
+// default:
+//     return res;
+//     break;
+// }
+// }
 
 void put_right_vals_into_array(Temp_temp *new_arr, vector<aA_rightVal> vals, int len, TempType type, string structname)
 {

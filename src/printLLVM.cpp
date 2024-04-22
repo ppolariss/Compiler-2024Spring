@@ -655,7 +655,7 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
                 {
                     // because there's no int_temp
                     // any INT_PTR in global would transfer to INT_TEMP
-                    printf("%d\n",v->u.NAME->type);
+                    // printf("%d\n",v->u.NAME->type);
                     assert(0);
                 }
             }

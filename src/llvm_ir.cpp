@@ -224,8 +224,8 @@ L_block* LLVMIR::L_Block(const std::list<L_stm*> instrs)
     }
     else
     {
-        printf("%d\n",instrs.size());
-        printf("%d\n",jump_ins->type);
+        // printf("%d\n",instrs.size());
+        // printf("%d\n",jump_ins->type);
         assert(0);
     }
     return new L_block(label,succs,instrs);
