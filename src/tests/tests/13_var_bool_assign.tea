@@ -1,0 +1,21 @@
+fn main()->int;
+struct MyStruct { 
+    node:int,
+    len:int  
+}
+
+fn foo(a:int, b:int)->int{
+    ret a+b;
+}
+
+let h:MyStruct;
+fn main()->int{
+    let a:int = 3==4;
+    ret a;
+}
+
+/*
+    key:
+    line 13
+    Typecheck passed!
+*/

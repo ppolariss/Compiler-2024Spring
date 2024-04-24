@@ -48,4 +48,4 @@ compiler.o: compiler.cpp TeaplAst.o TeaplaAst.o PrintTeaplaAst.o y.tab.o lex.yy.
 	$(CXX) $(CXXFLAGS) -c $<
 
 clean:
-	rm *.o *.output y.tab.cpp y.tab.hpp lex.yy.cpp compiler tests/*.ast
+	rm *.o *.output y.tab.cpp y.tab.hpp lex.yy.cpp compiler tests/*.ast tests/tests/*.ast

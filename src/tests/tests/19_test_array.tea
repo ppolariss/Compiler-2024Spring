@@ -1,0 +1,18 @@
+fn main()->int;
+struct MyStruct { 
+    node:int,
+    len:int  
+}
+
+fn foo(a:int, b:int)->int{
+    ret a+b;
+}
+let h:MyStruct;
+fn main()->int{
+    let a[2]:int = {0, 1};
+    let b[3]:int = {0, 1, 2};
+    a = b;
+    let c[2]:int = {0, 1, 2};
+}
+// line 15
+
