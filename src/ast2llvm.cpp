@@ -278,7 +278,6 @@ std::vector<LLVMIR::L_def *> ast2llvmProg_first(aA_program p)
                     if (!v->u.varDeclStmt->u.varDecl->u.declScalar->type)
                     {
                         assert(0);
-                        // TODO
                         // Temp_temp *temp = nullptr;
                         // globalVarMap.emplace(*v->u.varDeclStmt->u.varDecl->u.declScalar->id, Name_newname_int(temp));
                     }
@@ -608,8 +607,7 @@ Func_local *ast2llvmFunc(aA_fnDef f)
             break;
             case A_structTypeKind:
             {
-                // printf("%d", decl->u.declArray->len);
-                // TODO why?
+                // struct array exist!
                 Temp_temp *temp = Temp_newtemp_struct_ptr(-1, *decl->u.declArray->type->u.structType);
                 args.push_back(temp);
                 localVarMap.emplace(*decl->u.declArray->id, temp);
@@ -678,7 +676,8 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, Temp_label *con_label, Temp_l
                     // no type
                     if (!codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->type)
                     {
-                        // Mention! TODO
+                        assert(0);
+                        // Mention! no type scalar
                         Temp_temp *temp = nullptr;
                         localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->id, temp);
                         continue;
@@ -706,7 +705,8 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, Temp_label *con_label, Temp_l
                         assert(0);
                     if (!codeBlockStmt->u.varDeclStmt->u.varDecl->u.declArray->type)
                     {
-                        // TODO no type array
+                        assert(0);
+                        // no type array
                         Temp_temp *temp = nullptr;
                         localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->id, temp);
                         continue;
@@ -898,7 +898,7 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, Temp_label *con_label, Temp_l
                     string id = *codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->id;
                     string structType = "";
                     if (len != codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->len)
-                        assert(0); // TODO really?
+                        assert(0); // really? typecheck
 
                     if (!codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->type)
                     {
@@ -1096,7 +1096,7 @@ AS_operand *ast2llvmLeftVal(aA_leftVal l)
         if (name)
             return AS_Operand_Name(name);
         // both nullptr
-        // global doesn't allow null
+        // global doesn't allow null type
         if (globalVarMap.find(*l->u.id) == globalVarMap.end())
             if (localVarMap.find(*l->u.id) == localVarMap.end())
                 assert(0);
@@ -1313,7 +1313,6 @@ AS_operand *ast2llvmBoolUnit(aA_boolUnit b, Temp_label *true_label, Temp_label *
     break;
     case A_boolExprKind:
     {
-        // TODO
         return ast2llvmBoolExpr(b->u.boolExpr, true_label, false_label);
     }
     break;
