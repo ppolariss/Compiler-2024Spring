@@ -1104,114 +1104,11 @@ AS_operand *ast2llvmLeftVal(aA_leftVal l)
     }
     break;
     case A_arrValKind:
-    {
-        AS_operand *new_ptr;
-        AS_operand *leftval = ast2llvmLeftVal(l->u.arrExpr->arr);
-        switch (leftval->kind)
-        {
-        case OperandKind::TEMP:
-        {
-            switch (leftval->u.TEMP->type)
-            {
-            case TempType::INT_PTR:
-                new_ptr = AS_Operand_Temp(Temp_newtemp_int_ptr(0));
-                break;
-            case TempType::STRUCT_PTR:
-                new_ptr = AS_Operand_Temp(Temp_newtemp_struct_ptr(0, leftval->u.TEMP->structname));
-                break;
-            default:
-                assert(0);
-                break;
-            }
-        }
+        return getArray(l->u.arrExpr);
         break;
-        case OperandKind::NAME:
-        {
-            switch (leftval->u.NAME->type)
-            {
-            case TempType::INT_PTR:
-                new_ptr = AS_Operand_Temp(Temp_newtemp_int_ptr(0));
-                break;
-            case TempType::STRUCT_PTR:
-                new_ptr = AS_Operand_Temp(Temp_newtemp_struct_ptr(0, leftval->u.NAME->structname));
-                break;
-            case TempType::INT_TEMP:
-                new_ptr = AS_Operand_Temp(Temp_newtemp_int_ptr(0));
-                break;
-            case TempType::STRUCT_TEMP:
-                new_ptr = AS_Operand_Temp(Temp_newtemp_struct_ptr(0, leftval->u.NAME->structname));
-                break;
-            default:
-                assert(0);
-                break;
-            }
-        }
-        break;
-        default:
-            assert(0);
-            break;
-        }
-
-        emit_irs.push_back(L_Gep(new_ptr, leftval, ast2llvmIndexExpr(l->u.arrExpr->idx)));
-        return new_ptr;
-    }
-    break;
     case A_memberValKind:
-    {
-        AS_operand *leftval = ast2llvmLeftVal(l->u.memberExpr->structId);
-        string name;
-        AS_operand *new_ptr;
-        switch (leftval->kind)
-        {
-        case OperandKind::TEMP:
-        {
-            if (leftval->u.TEMP->type != TempType::STRUCT_PTR)
-                assert(0);
-            name = leftval->u.TEMP->structname;
-        }
+        return getMember(l->u.memberExpr);
         break;
-        case OperandKind::NAME:
-        {
-            if (leftval->u.NAME->type != TempType::STRUCT_PTR && leftval->u.NAME->type != TempType::STRUCT_TEMP)
-                assert(0);
-            name = leftval->u.NAME->structname;
-        }
-        break;
-        default:
-            assert(0);
-            break;
-        }
-        MemberInfo member = structInfoMap[name].memberinfos[*l->u.memberExpr->memberId];
-        int offset = member.offset;
-        switch (member.def.kind)
-        {
-        // todo redundant
-        case TempType::INT_TEMP:
-            new_ptr = AS_Operand_Temp(Temp_newtemp_int_ptr(0));
-            break;
-        case TempType::INT_PTR:
-            new_ptr = AS_Operand_Temp(Temp_newtemp_int_ptr(member.def.len));
-            break;
-        case TempType::STRUCT_TEMP:
-            new_ptr = AS_Operand_Temp(Temp_newtemp_struct_ptr(0, member.def.structname));
-            break;
-        case TempType::STRUCT_PTR:
-            new_ptr = AS_Operand_Temp(Temp_newtemp_struct_ptr(member.def.len, member.def.structname));
-            break;
-        default:
-            assert(0);
-            break;
-        }
-        emit_irs.push_back(L_Gep(new_ptr, leftval, AS_Operand_Const(offset)));
-        // printf("member: %s\n", l->u.memberExpr->memberId->c_str());
-        //  printf("%d\n", member.def.kind);
-        //  printf("%d\n", member.def.len);
-        // printf("%d\n", new_ptr->u.TEMP->len);
-        // printf("%d\n", new_ptr->u.TEMP->type);
-        return new_ptr;
-        // return member type rather than struct type
-    }
-    break;
     default:
         assert(0);
         break;
@@ -1760,9 +1657,15 @@ AS_operand *getMember(aA_memberExpr memberExpr)
     }
 
     emit_irs.push_back(L_Gep(new_ptr, leftval, AS_Operand_Const(offset)));
+    return new_ptr;
     // printf("member: %s\n", memberExpr->memberId->c_str());
     // printf("%d\n", member.def.kind);
-    return new_ptr;
+    // printf("member: %s\n", l->u.memberExpr->memberId->c_str());
+    //  printf("%d\n", member.def.kind);
+    //  printf("%d\n", member.def.len);
+    // printf("%d\n", new_ptr->u.TEMP->len);
+    // printf("%d\n", new_ptr->u.TEMP->type);
+    // return member type rather than struct type
 }
 
 // if ptr->ret val
