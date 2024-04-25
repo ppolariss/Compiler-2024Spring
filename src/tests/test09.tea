@@ -2,10 +2,10 @@ struct A {
     a: int
 }
 
-fn test(a: int) -> A {
+fn test(a: int)  {
     let x: A;
     x.a = a;
-    ret x;
+    //ret x;//bug
 }
 
 fn main()->int{

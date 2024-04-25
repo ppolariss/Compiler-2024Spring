@@ -659,6 +659,8 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, Temp_label *con_label, Temp_l
     // void getCodeBlockStmts(vector<aA_codeBlockStmt> stmts, string *fnname)
     for (aA_codeBlockStmt codeBlockStmt : stmts)
     {
+        if (!codeBlockStmt)
+            continue;
         switch (codeBlockStmt->kind)
         {
         case A_nullStmtKind:
@@ -1071,8 +1073,7 @@ AS_operand *ast2llvmRightVal(aA_rightVal r)
     break;
     case A_boolExprValKind:
     {
-        // TODO
-        return ast2llvmBoolExpr(r->u.boolExpr, nullptr, nullptr);
+        return ast2llvmBoolExpr(r->u.boolExpr, nullptr, nullptr, true);
     }
     break;
     default:
@@ -1249,35 +1250,68 @@ AS_operand *ast2llvmIndexExpr(aA_indexExpr index)
     }
 }
 
-AS_operand *ast2llvmBoolExpr(aA_boolExpr b, Temp_label *true_label, Temp_label *false_label)
+AS_operand *ast2llvmBoolExpr(aA_boolExpr b, Temp_label *true_label, Temp_label *false_label, bool want_i32)
 {
+    if (!true_label && !false_label)
+    {
+        Temp_label *true_label = Temp_newlabel();
+        Temp_label *false_label = Temp_newlabel();
+        Temp_label *next_label = Temp_newlabel();
+        Temp_temp *new_var = Temp_newtemp_int_ptr(0);
+        emit_irs.push_back(L_Alloca(AS_Operand_Temp(new_var)));
+
+        switch (b->kind)
+        {
+        case A_boolBiOpExprKind:
+            ast2llvmBoolBiOpExpr(b->u.boolBiOpExpr, true_label, false_label);
+            break;
+        case A_boolUnitKind:
+            ast2llvmBoolUnit(b->u.boolUnit, true_label, false_label);
+            break;
+        default:
+            assert(0);
+            break;
+        }
+
+        emit_irs.push_back(L_Label(true_label));
+        emit_irs.push_back(L_Store(AS_Operand_Const(1), AS_Operand_Temp(new_var)));
+        emit_irs.push_back(L_Jump(next_label));
+
+        emit_irs.push_back(L_Label(false_label));
+        emit_irs.push_back(L_Store(AS_Operand_Const(0), AS_Operand_Temp(new_var)));
+        emit_irs.push_back(L_Jump(next_label));
+
+        emit_irs.push_back(L_Label(next_label));
+
+        Temp_temp *val = Temp_newtemp_int();
+        emit_irs.push_back(L_Load(AS_Operand_Temp(val), AS_Operand_Temp(new_var)));
+        if (want_i32)
+            return AS_Operand_Temp(val);
+        Temp_temp *ret = Temp_newtemp_int();
+        emit_irs.push_back(L_Cmp(LLVMIR::L_relopKind::T_ne, AS_Operand_Temp(val), AS_Operand_Const(0), AS_Operand_Temp(ret)));
+        return AS_Operand_Temp(ret);
+    }
+    else if (!true_label || !false_label)
+        assert(0);
+
     // if nullptr return value
     // else br
     switch (b->kind)
     {
     case A_boolBiOpExprKind:
-    {
-        // if (true_label && false_label)
-        return ast2llvmBoolBiOpExpr(b->u.boolBiOpExpr, true_label, false_label);
-        // else
-        //     return ast2llvmBoolBiOpExpr(b->u.boolBiOpExpr, nullptr, nullptr);
-    }
-    break;
+        ast2llvmBoolBiOpExpr(b->u.boolBiOpExpr, true_label, false_label);
+        return nullptr;
+        break;
     case A_boolUnitKind:
-    {
-        // if (true_label && false_label)
         return ast2llvmBoolUnit(b->u.boolUnit, true_label, false_label);
-        // else
-        //     return ast2llvmBoolUnit(b->u.boolUnit, nullptr, nullptr);
-    }
-    break;
+        break;
     default:
         assert(0);
         break;
     }
 }
 
-AS_operand *ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp_label *false_label)
+void ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp_label *false_label)
 {
     AS_operand *l = ast2llvmBoolExpr(b->left, nullptr, nullptr);
     Temp_label *temp_label = Temp_newlabel();
@@ -1292,31 +1326,36 @@ AS_operand *ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp
             emit_irs.push_back(L_Label(temp_label));
             auto r = ast2llvmBoolExpr(b->right, nullptr, nullptr);
             emit_irs.push_back(L_Cjump(r, true_label, false_label));
-            return nullptr;
+            return;
         }
         else
         {
-            // is rightval rather than br
-            Temp_temp *res = Temp_newtemp_int_ptr(0);
-            Temp_label *next_label = Temp_newlabel();
-            true_label = Temp_newlabel();
+            assert(0);
+            return;
+            // // is rightval rather than br
+            // // return var rather than ptr
+            // Temp_temp *res = Temp_newtemp_int_ptr(0);
+            // Temp_label *next_label = Temp_newlabel();
+            // true_label = Temp_newlabel();
 
-            emit_irs.push_back(L_Alloca(AS_Operand_Temp(res)));
-            emit_irs.push_back(L_Store(AS_Operand_Const(0), AS_Operand_Temp(res)));
+            // emit_irs.push_back(L_Alloca(AS_Operand_Temp(res)));
+            // emit_irs.push_back(L_Store(AS_Operand_Const(0), AS_Operand_Temp(res)));
 
-            emit_irs.push_back(L_Cjump(l, temp_label, next_label));
+            // emit_irs.push_back(L_Cjump(l, temp_label, next_label));
 
-            emit_irs.push_back(L_Label(temp_label));
-            auto r = ast2llvmBoolExpr(b->right, nullptr, nullptr);
-            emit_irs.push_back(L_Cjump(r, true_label, next_label));
-            // both true
-            emit_irs.push_back(L_Label(true_label));
-            emit_irs.push_back(L_Store(AS_Operand_Const(1), AS_Operand_Temp(res)));
-            emit_irs.push_back(L_Jump(next_label));
+            // emit_irs.push_back(L_Label(temp_label));
+            // auto r = ast2llvmBoolExpr(b->right, nullptr, nullptr);
+            // emit_irs.push_back(L_Cjump(r, true_label, next_label));
+            // // both true
+            // emit_irs.push_back(L_Label(true_label));
+            // emit_irs.push_back(L_Store(AS_Operand_Const(1), AS_Operand_Temp(res)));
+            // emit_irs.push_back(L_Jump(next_label));
 
-            emit_irs.push_back(L_Label(next_label));
+            // emit_irs.push_back(L_Label(next_label));
 
-            return AS_Operand_Temp(res);
+            // Temp_temp *ret = Temp_newtemp_int();
+            // emit_irs.push_back(L_Load(AS_Operand_Temp(ret), AS_Operand_Temp(res)));
+            // return AS_Operand_Temp(ret);
         }
     }
     break;
@@ -1329,29 +1368,33 @@ AS_operand *ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp
             emit_irs.push_back(L_Label(temp_label));
             auto r = ast2llvmBoolExpr(b->right, nullptr, nullptr);
             emit_irs.push_back(L_Cjump(r, true_label, false_label));
-            return nullptr;
+            return;
         }
         else
         {
-            Temp_temp *res = Temp_newtemp_int_ptr(0);
-            Temp_label *next_label = Temp_newlabel();
-            false_label = Temp_newlabel();
+            assert(0);
+            return;
+            // Temp_temp *res = Temp_newtemp_int_ptr(0);
+            // Temp_label *next_label = Temp_newlabel();
+            // false_label = Temp_newlabel();
 
-            emit_irs.push_back(L_Alloca(AS_Operand_Temp(res)));
-            emit_irs.push_back(L_Store(AS_Operand_Const(1), AS_Operand_Temp(res)));
-            emit_irs.push_back(L_Cjump(l, next_label, temp_label));
+            // emit_irs.push_back(L_Alloca(AS_Operand_Temp(res)));
+            // emit_irs.push_back(L_Store(AS_Operand_Const(1), AS_Operand_Temp(res)));
+            // emit_irs.push_back(L_Cjump(l, next_label, temp_label));
 
-            emit_irs.push_back(L_Label(temp_label));
-            auto r = ast2llvmBoolExpr(b->right, nullptr, nullptr);
-            emit_irs.push_back(L_Cjump(r, next_label, false_label));
+            // emit_irs.push_back(L_Label(temp_label));
+            // auto r = ast2llvmBoolExpr(b->right, nullptr, nullptr);
+            // emit_irs.push_back(L_Cjump(r, next_label, false_label));
 
-            emit_irs.push_back(L_Label(false_label));
-            emit_irs.push_back(L_Store(AS_Operand_Const(0), AS_Operand_Temp(res)));
-            emit_irs.push_back(L_Jump(next_label));
+            // emit_irs.push_back(L_Label(false_label));
+            // emit_irs.push_back(L_Store(AS_Operand_Const(0), AS_Operand_Temp(res)));
+            // emit_irs.push_back(L_Jump(next_label));
 
-            emit_irs.push_back(L_Label(next_label));
+            // emit_irs.push_back(L_Label(next_label));
 
-            return AS_Operand_Temp(res);
+            // Temp_temp *ret = Temp_newtemp_int();
+            // emit_irs.push_back(L_Load(AS_Operand_Temp(ret), AS_Operand_Temp(res)));
+            // return AS_Operand_Temp(ret);
         }
     }
     break;
@@ -1441,6 +1484,14 @@ AS_operand *ast2llvmComOpExpr(aA_comExpr c, Temp_label *true_label, Temp_label *
     emit_irs.push_back(L_Cmp(kind, left, right, AS_Operand_Temp(res)));
     if (true_label && false_label)
         emit_irs.push_back(L_Cjump(AS_Operand_Temp(res), true_label, false_label));
+    else
+    {
+        assert(0);
+        // true_label = Temp_newlabel();
+        // false_label = Temp_newlabel();
+        // emit_irs.push_back(L_Cjump(AS_Operand_Temp(res), true_label, false_label));
+        // emit_irs.push_back(L_Label(true_label));
+    }
 
     return AS_Operand_Temp(res);
 }
@@ -1618,7 +1669,7 @@ void ast2llvm_moveAlloca(LLVMIR::L_func *f)
 AS_operand *getArray(aA_arrayExpr arrExpr)
 {
     AS_operand *new_ptr;
-    auto leftval = ast2llvmLeftVal(arrExpr->arr);
+    AS_operand *leftval = ast2llvmLeftVal(arrExpr->arr);
     switch (leftval->kind)
     {
     case OperandKind::TEMP:
