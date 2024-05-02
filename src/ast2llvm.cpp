@@ -894,10 +894,10 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, Temp_label *con_label, Temp_l
                 {
                     Temp_temp *new_arr;
                     auto vals = codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->vals;
-                    int len = vals.size();
+                    int len = codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->len;
                     string id = *codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->id;
                     string structType = "";
-                    if (len != codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->len)
+                    if (vals.size() > len)
                         assert(0); // really? typecheck
 
                     if (!codeBlockStmt->u.varDeclStmt->u.varDef->u.defArray->type)
@@ -1796,11 +1796,14 @@ AS_operand *loadPtr(AS_operand *res)
 
 void put_right_vals_into_array(Temp_temp *new_arr, vector<aA_rightVal> vals, int len, TempType type, string structname)
 {
+    int size = vals.size();
+    if (size > len)
+        assert(0);
     switch (type)
     {
     case TempType::INT_PTR:
     {
-        for (int i = 0; i < len; i++)
+        for (int i = 0; i < size; i++)
         {
             Temp_temp *int_ptr = Temp_newtemp_int_ptr(0);
             emit_irs.push_back(L_Gep(AS_Operand_Temp(int_ptr), AS_Operand_Temp(new_arr), AS_Operand_Const(i)));
@@ -1820,11 +1823,22 @@ void put_right_vals_into_array(Temp_temp *new_arr, vector<aA_rightVal> vals, int
             }
             emit_irs.push_back(L_Store(temp, AS_Operand_Temp(int_ptr)));
         }
+        if (size < len)
+        {
+            for (int i = size; i < len; i++)
+            {
+                Temp_temp *int_ptr = Temp_newtemp_int_ptr(0);
+                emit_irs.push_back(L_Gep(AS_Operand_Temp(int_ptr), AS_Operand_Temp(new_arr), AS_Operand_Const(i)));
+                emit_irs.push_back(L_Store(AS_Operand_Const(0), AS_Operand_Temp(int_ptr)));
+            }
+        }
     }
     break;
     case TempType::STRUCT_PTR:
     {
         // assert(0);
+        if (size != len)
+            assert(0);
         for (int i = 0; i < len; i++)
         {
             Temp_temp *struct_ptr = Temp_newtemp_struct_ptr(0, structname);
