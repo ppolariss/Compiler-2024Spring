@@ -693,6 +693,7 @@ void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, Temp_label *con_label, Temp_l
                     }
                     else
                     {
+                        // store 0 automatically
                         Temp_temp *temp = Temp_newtemp_int_ptr(0);
                         emit_irs.push_back(L_Alloca(AS_Operand_Temp(temp)));
                         localVarMap.emplace(*codeBlockStmt->u.varDeclStmt->u.varDecl->u.declScalar->id, temp);
