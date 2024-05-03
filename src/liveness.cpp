@@ -93,8 +93,8 @@ list<AS_operand **> get_all_AS_operand(L_stm *stm)
     break;
     case L_StmKind::T_RETURN:
     {
-        if (stm->u.RET->ret != nullptr)
-            AS_operand_list.push_back(&(stm->u.RET->ret));
+        if (stm->u.RETURN->ret != nullptr)
+            AS_operand_list.push_back(&(stm->u.RETURN->ret));
     }
     break;
     case L_StmKind::T_PHI:
@@ -280,8 +280,8 @@ std::list<AS_operand **> get_use_operand(L_stm *stm)
     break;
     case L_StmKind::T_RETURN:
     {
-        if (stm->u.RET->ret != nullptr)
-            AS_operand_list.push_back(&(stm->u.RET->ret));
+        if (stm->u.RETURN->ret != nullptr)
+            AS_operand_list.push_back(&(stm->u.RETURN->ret));
     }
     break;
     case L_StmKind::T_PHI:
