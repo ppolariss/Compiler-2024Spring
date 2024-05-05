@@ -1218,7 +1218,8 @@ AS_operand *ast2llvmBoolExpr(aA_boolExpr b, Temp_label *true_label, Temp_label *
         return nullptr;
         break;
     case A_boolUnitKind:
-        return ast2llvmBoolUnit(b->u.boolUnit, true_label, false_label);
+        ast2llvmBoolUnit(b->u.boolUnit, true_label, false_label);
+        return nullptr;
         break;
     default:
         assert(0);
@@ -1319,25 +1320,28 @@ void ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp_label 
     }
 }
 
-AS_operand *ast2llvmBoolUnit(aA_boolUnit b, Temp_label *true_label, Temp_label *false_label)
+void ast2llvmBoolUnit(aA_boolUnit b, Temp_label *true_label, Temp_label *false_label)
 {
     switch (b->kind)
     {
     case A_comOpExprKind:
     {
         // a > b
-        return ast2llvmComOpExpr(b->u.comExpr, true_label, false_label);
+        ast2llvmComOpExpr(b->u.comExpr, true_label, false_label);
+        return;
     }
     break;
     case A_boolExprKind:
     {
-        return ast2llvmBoolExpr(b->u.boolExpr, true_label, false_label);
+        ast2llvmBoolExpr(b->u.boolExpr, true_label, false_label);
+        return;
     }
     break;
     case A_boolUOpExprKind:
     {
         // !a
-        return ast2llvmBoolUOpExpr(b->u.boolUOpExpr, true_label, false_label);
+        ast2llvmBoolUOpExpr(b->u.boolUOpExpr, true_label, false_label);
+        return;
     }
     break;
     default:
@@ -1345,10 +1349,10 @@ AS_operand *ast2llvmBoolUnit(aA_boolUnit b, Temp_label *true_label, Temp_label *
         break;
     }
     assert(0);
-    return nullptr;
+    return;
 }
 
-AS_operand *ast2llvmBoolUOpExpr(aA_boolUOpExpr b, Temp_label *true_label, Temp_label *false_label)
+void ast2llvmBoolUOpExpr(aA_boolUOpExpr b, Temp_label *true_label, Temp_label *false_label)
 {
     switch (b->op)
     {
@@ -1363,7 +1367,7 @@ AS_operand *ast2llvmBoolUOpExpr(aA_boolUOpExpr b, Temp_label *true_label, Temp_l
     }
 }
 
-AS_operand *ast2llvmComOpExpr(aA_comExpr c, Temp_label *true_label, Temp_label *false_label)
+void ast2llvmComOpExpr(aA_comExpr c, Temp_label *true_label, Temp_label *false_label)
 {
     LLVMIR::L_relopKind kind;
     switch (c->op)
@@ -1407,7 +1411,7 @@ AS_operand *ast2llvmComOpExpr(aA_comExpr c, Temp_label *true_label, Temp_label *
         // emit_irs.push_back(L_Label(true_label));
     }
 
-    return AS_Operand_Temp(res);
+    AS_Operand_Temp(res);
 }
 
 AS_operand *ast2llvmArithBiOpExpr(aA_arithBiOpExpr a)
