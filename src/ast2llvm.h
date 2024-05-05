@@ -35,12 +35,13 @@ struct Func_local
 std::vector<LLVMIR::L_def *> ast2llvmProg_first(aA_program p);
 std::vector<Func_local *> ast2llvmProg_second(aA_program p);
 Func_local *ast2llvmFunc(aA_fnDef f);
-// void ast2llvmBlock(aA_codeBlockStmt b, Temp_label *con_label = nullptr, Temp_label *bre_label = nullptr);
-void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, Temp_label *con_label = nullptr, Temp_label *bre_label = nullptr);
+void ast2llvmBlock(aA_codeBlockStmt b, Temp_label *con_label = nullptr, Temp_label *bre_label = nullptr);
+// void ast2llvmBlock(vector<aA_codeBlockStmt> stmts, Temp_label *con_label = nullptr, Temp_label *bre_label = nullptr);
 AS_operand *ast2llvmRightVal(aA_rightVal r);
 AS_operand *ast2llvmLeftVal(aA_leftVal l);
 AS_operand *ast2llvmIndexExpr(aA_indexExpr index);
-AS_operand *ast2llvmBoolExpr(aA_boolExpr b, Temp_label *true_label = nullptr, Temp_label *false_label = nullptr, bool want_i32 = false);
+// AS_operand *ast2llvmBoolExpr(aA_boolExpr b, Temp_label *true_label = nullptr, Temp_label *false_label = nullptr, bool want_i32 = false);
+AS_operand *ast2llvmBoolExpr(aA_boolExpr b, Temp_label *true_label = nullptr, Temp_label *false_label = nullptr);
 void ast2llvmBoolBiOpExpr(aA_boolBiOpExpr b, Temp_label *true_label, Temp_label *false_label);
 void ast2llvmBoolUOpExpr(aA_boolUOpExpr b, Temp_label *true_label, Temp_label *false_label);
 void ast2llvmBoolUnit(aA_boolUnit b, Temp_label *true_label, Temp_label *false_label);
