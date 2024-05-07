@@ -108,8 +108,8 @@ void SingleSourceGraph(Node<L_block *> *r, Graph<L_block *> &bg, L_func *fun)
         }
     }
 
-    // print bg
-    Show_graph(stdout, bg);
+    // // print bg
+    // Show_graph(stdout, bg);
     //   Todo
 }
 

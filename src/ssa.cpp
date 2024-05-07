@@ -147,49 +147,79 @@ void mem2reg(LLVMIR::L_func *fun)
         // block->instrs.remove_if([](L_stm *stm)
         //                         { return stm->type == L_StmKind::T_LOAD; });
         //  || stm->type == L_StmKind::T_STORE;
-        for (auto &stm : block->instrs)
+        for (auto it = block->instrs.begin(); it != block->instrs.end();)
         {
-            if (stm->type == L_StmKind::T_LOAD)
+            if ((*it)->type == L_StmKind::T_LOAD && (*it)->u.LOAD->ptr->kind == OperandKind::TEMP)
             {
-                if (stm->u.LOAD->ptr->kind == OperandKind::TEMP)
+                auto ptr_operand = temp2ASoper[(*it)->u.LOAD->ptr->u.TEMP];
+                if (ptr_operand)
                 {
-                    auto ptr_operand = temp2ASoper[stm->u.LOAD->ptr->u.TEMP];
+                    // *it = L_Move(ptr_operand, (*it)->u.LOAD->dst);
+                    it = block->instrs.erase(it);
+                    continue;
+                }
+            }
+            if ((*it)->type == L_StmKind::T_STORE && (*it)->u.STORE->ptr->kind == OperandKind::TEMP)
+            {
+                auto store = (*it)->u.STORE;
+                if (store->src->kind == OperandKind::ICONST)
+                {
+                    auto const_operand = store->src;
+                    auto ptr_operand = temp2ASoper[store->ptr->u.TEMP];
                     if (ptr_operand)
-                        stm = L_Move(ptr_operand, stm->u.LOAD->dst);
-                }
-                // block->instrs.remove(stm);
-            }
-            if (stm->type == L_StmKind::T_STORE)
-            {
-                if (stm->u.STORE->src->kind == OperandKind::ICONST)
-                {
-                    auto const_operand = stm->u.STORE->src;
-                    // temp2ASoper[stm->u.STORE->ptr->u.TEMP] = const_operand;
-                    stm = L_Move(const_operand, stm->u.STORE->ptr);
-                    // block->instrs.remove(stm);
-                }
-                else if (stm->u.STORE->src->kind == OperandKind::TEMP)
-                {
-                    if (stm->u.STORE->ptr->kind == OperandKind::TEMP)
                     {
-                        // temp2ASoper[stm->u.STORE->ptr->u.TEMP] = stm->u.STORE->src;
-                        auto ptr_operand = temp2ASoper[stm->u.STORE->ptr->u.TEMP];
-                        if (ptr_operand)
-                            stm = L_Move(stm->u.STORE->src, stm->u.STORE->ptr);
+                        *it = L_Move(const_operand, store->ptr);
                     }
                 }
-                else if (stm->u.STORE->src->kind == OperandKind::NAME)
+                else if (store->src->kind == OperandKind::TEMP)
                 {
-                    if (stm->u.STORE->ptr->kind == OperandKind::TEMP)
+                    auto ptr_operand = temp2ASoper[store->ptr->u.TEMP];
+                    if (ptr_operand)
                     {
-                        // temp2ASoper[stm->u.STORE->ptr->u.TEMP] = stm->u.STORE->src;
-                        auto ptr_operand = temp2ASoper[stm->u.STORE->ptr->u.TEMP];
-                        if (ptr_operand)
-                            stm = L_Move(stm->u.STORE->src, stm->u.STORE->ptr);
+                        *it = L_Move(store->src, store->ptr);
+                    }
+                }
+                else if (store->src->kind == OperandKind::NAME)
+                {
+                    auto ptr_operand = temp2ASoper[store->ptr->u.TEMP];
+                    if (ptr_operand)
+                    {
+                        *it = L_Move(store->src, store->ptr);
                     }
                 }
             }
+            it++;
         }
+        // if (stm->type == L_StmKind::T_STORE)
+        // {
+        //     if (stm->u.STORE->src->kind == OperandKind::ICONST)
+        //     {
+        //         auto const_operand = stm->u.STORE->src;
+        //         // temp2ASoper[stm->u.STORE->ptr->u.TEMP] = const_operand;
+        //         stm = L_Move(const_operand, stm->u.STORE->ptr);
+        //         // block->instrs.remove(stm);
+        //     }
+        //     else if (stm->u.STORE->src->kind == OperandKind::TEMP)
+        //     {
+        //         if (stm->u.STORE->ptr->kind == OperandKind::TEMP)
+        //         {
+        //             // temp2ASoper[stm->u.STORE->ptr->u.TEMP] = stm->u.STORE->src;
+        //             auto ptr_operand = temp2ASoper[stm->u.STORE->ptr->u.TEMP];
+        //             if (ptr_operand)
+        //                 stm = L_Move(stm->u.STORE->src, stm->u.STORE->ptr);
+        //         }
+        //     }
+        //     else if (stm->u.STORE->src->kind == OperandKind::NAME)
+        //     {
+        //         if (stm->u.STORE->ptr->kind == OperandKind::TEMP)
+        //         {
+        //             // temp2ASoper[stm->u.STORE->ptr->u.TEMP] = stm->u.STORE->src;
+        //             auto ptr_operand = temp2ASoper[stm->u.STORE->ptr->u.TEMP];
+        //             if (ptr_operand)
+        //                 stm = L_Move(stm->u.STORE->src, stm->u.STORE->ptr);
+        //         }
+        //     }
+        // }
     }
     //   Todo
 }
