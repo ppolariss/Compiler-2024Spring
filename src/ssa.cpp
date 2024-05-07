@@ -115,24 +115,27 @@ void mem2reg(LLVMIR::L_func *fun)
         {
             if (is_mem_variable(stm))
             {
-                // auto temp = stm->u.ALLOCA->dst->u.TEMP;
+                auto temp = stm->u.ALLOCA->dst->u.TEMP;
                 // auto AS_op = temp2ASoper[temp];
                 // if (AS_op == nullptr)
-                // {
-                //     AS_op = new AS_operand();
-                //     AS_op->kind = OperandKind::TEMP;
-                //     AS_op->u.TEMP = new Temp_temp();
-                //     *AS_op->u.TEMP = *temp;
-                //     temp2ASoper[temp] = AS_op;
-                // }
-                // auto new_stm = new L_stm();
-                // new_stm->type = L_StmKind::T_MOVE;
-                // new_stm->u.MOVE = L_Move();
-                // new_stm->u.MOVE->dst = new AS_operand();
-                // new_stm->u.MOVE->dst = AS_op;
-                // new_stm->u.MOVE->src = new AS_operand();
-                // new_stm->u.MOVE->src = stm->u.ALLOCA->size;
-                // stm = new_stm;
+                auto AS_op = AS_Operand_Temp(temp);
+                temp2ASoper[temp] = AS_op;
+                // ),AS_op
+                stm = L_Move(AS_Operand_Const(0), stm->u.ALLOCA->dst);
+            }
+            if (stm->type == L_StmKind::T_LOAD)
+            {
+                stm = L_Move(stm->u.LOAD->dst, stm->u.LOAD->ptr);
+                // block->instrs.remove(stm);
+            }
+            if (stm->type == L_StmKind::T_STORE)
+            {
+                if (stm->u.STORE->src->kind == OperandKind::ICONST)
+                {
+                    temp2ASoper[stm->u.STORE->ptr->u.TEMP] = stm->u.STORE->src;
+                }
+                // block->instrs.remove(stm);
+                stm = L_Move(stm->u.STORE->ptr, stm->u.STORE->src);
             }
         }
     }
