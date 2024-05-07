@@ -6,7 +6,7 @@
 using namespace std;
 using namespace LLVMIR;
 
-void LLVMIR::printL_def(ostream &os,L_def *def)
+void LLVMIR::printL_def(ostream &os, L_def *def)
 {
     switch (def->kind)
     {
@@ -14,9 +14,9 @@ void LLVMIR::printL_def(ostream &os,L_def *def)
     {
         os << "%" << def->u.SRT->name << " = type {";
         bool first = true;
-        for(const auto &m : def->u.SRT->members)
+        for (const auto &m : def->u.SRT->members)
         {
-            if(first)
+            if (first)
             {
                 os << " ";
                 first = false;
@@ -34,11 +34,12 @@ void LLVMIR::printL_def(ostream &os,L_def *def)
             }
             case TempType::INT_PTR:
             {
-                if(m.len <= 0)
+                if (m.len <= 0)
                 {
                     assert(0);
                 }
-                os << "[" << m.len << " x " << "i32 ]";
+                os << "[" << m.len << " x "
+                   << "i32 ]";
                 break;
             }
             case TempType::STRUCT_TEMP:
@@ -48,11 +49,12 @@ void LLVMIR::printL_def(ostream &os,L_def *def)
             }
             case TempType::STRUCT_PTR:
             {
-                if(m.len <= 0)
+                if (m.len <= 0)
                 {
                     assert(0);
                 }
-                os << "[" << m.len << " x " << "%" << m.structname << " ]";
+                os << "[" << m.len << " x "
+                   << "%" << m.structname << " ]";
                 break;
             }
             default:
@@ -71,7 +73,7 @@ void LLVMIR::printL_def(ostream &os,L_def *def)
         case TempType::INT_TEMP:
         {
             os << "i32 ";
-            if(def->u.GLOBAL->init.size() == 1)
+            if (def->u.GLOBAL->init.size() == 1)
             {
                 os << def->u.GLOBAL->init[0];
             }
@@ -84,16 +86,16 @@ void LLVMIR::printL_def(ostream &os,L_def *def)
         case TempType::INT_PTR:
         {
             os << "[ " << def->u.GLOBAL->def.len << " x i32 ]";
-            if(def->u.GLOBAL->init.size() == 0)
+            if (def->u.GLOBAL->init.size() == 0)
             {
                 os << " zeroinitializer";
             }
             else
             {
                 os << " [";
-                for(int i = 0;i < def->u.GLOBAL->init.size();++i)
+                for (int i = 0; i < def->u.GLOBAL->init.size(); ++i)
                 {
-                    if(i == 0)
+                    if (i == 0)
                     {
                         os << " ";
                     }
@@ -103,23 +105,23 @@ void LLVMIR::printL_def(ostream &os,L_def *def)
                     }
                     os << "i32 " << def->u.GLOBAL->init[i];
                 }
-                for(int i = 0;i < def->u.GLOBAL->def.len - def->u.GLOBAL->init.size();++i)
+                for (int i = 0; i < def->u.GLOBAL->def.len - def->u.GLOBAL->init.size(); ++i)
                 {
                     os << ", i32 0";
                 }
                 os << " ]";
             }
-            break;    
+            break;
         }
         case TempType::STRUCT_TEMP:
         {
             os << "%" << def->u.GLOBAL->def.structname << " zeroinitializer";
-            break;   
+            break;
         }
         case TempType::STRUCT_PTR:
         {
-            os << "[ "<< def->u.GLOBAL->def.len << " x %" << def->u.GLOBAL->def.structname << " ] zeroinitializer";
-            break;  
+            os << "[ " << def->u.GLOBAL->def.len << " x %" << def->u.GLOBAL->def.structname << " ] zeroinitializer";
+            break;
         }
         default:
             break;
@@ -151,9 +153,9 @@ void LLVMIR::printL_def(ostream &os,L_def *def)
         }
         os << "@" << def->u.FUNC->name << "(";
         bool first = true;
-        for(const auto &v : def->u.FUNC->args)
+        for (const auto &v : def->u.FUNC->args)
         {
-            if(first)
+            if (first)
             {
                 first = false;
                 os << " ";
@@ -197,16 +199,16 @@ void LLVMIR::printL_def(ostream &os,L_def *def)
     os << "\n";
 }
 
-void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
+void LLVMIR::printL_stm(std::ostream &os, LLVMIR::L_stm *stm)
 {
     switch (stm->type)
     {
     case L_StmKind::T_ALLOCA:
     {
-        if(stm->u.ALLOCA->dst->kind == OperandKind::TEMP)
+        if (stm->u.ALLOCA->dst->kind == OperandKind::TEMP)
         {
             os << "  ";
-            printL_oper(os,stm->u.ALLOCA->dst);
+            printL_oper(os, stm->u.ALLOCA->dst);
             os << " = alloca ";
             switch (stm->u.ALLOCA->dst->u.TEMP->type)
             {
@@ -217,7 +219,7 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
             }
             case TempType::INT_PTR:
             {
-                if(stm->u.ALLOCA->dst->u.TEMP->len == 0)
+                if (stm->u.ALLOCA->dst->u.TEMP->len == 0)
                     os << "i32";
                 else
                     os << "[ " << stm->u.ALLOCA->dst->u.TEMP->len << " x i32 ]";
@@ -230,7 +232,7 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
             }
             case TempType::STRUCT_PTR:
             {
-                if(stm->u.ALLOCA->dst->u.TEMP->len == 0)
+                if (stm->u.ALLOCA->dst->u.TEMP->len == 0)
                     os << "%" << stm->u.ALLOCA->dst->u.TEMP->structname;
                 else
                     os << "[ " << stm->u.ALLOCA->dst->u.TEMP->len << " x %" << stm->u.ALLOCA->dst->u.TEMP->structname << " ]";
@@ -248,12 +250,12 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
     }
     case L_StmKind::T_BINOP:
     {
-        if(stm->u.BINOP->dst->kind != OperandKind::TEMP)
+        if (stm->u.BINOP->dst->kind != OperandKind::TEMP)
         {
             assert(0);
         }
         os << "  ";
-        printL_oper(os,stm->u.BINOP->dst);
+        printL_oper(os, stm->u.BINOP->dst);
         os << " = ";
         switch (stm->u.BINOP->op)
         {
@@ -281,20 +283,20 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
             break;
         }
         os << " i32 ";
-        printL_oper(os,stm->u.BINOP->left);
+        printL_oper(os, stm->u.BINOP->left);
         os << ", ";
-        printL_oper(os,stm->u.BINOP->right);
+        printL_oper(os, stm->u.BINOP->right);
         break;
     }
     case L_StmKind::T_CALL:
     {
         os << "  ";
-        printL_oper(os,stm->u.CALL->res);
+        printL_oper(os, stm->u.CALL->res);
         os << " = call i32 @" << stm->u.CALL->fun << "(";
         bool first = true;
-        for(const auto &v : stm->u.CALL->args)
+        for (const auto &v : stm->u.CALL->args)
         {
-            if(first)
+            if (first)
             {
                 first = false;
             }
@@ -302,17 +304,17 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
             {
                 os << ", ";
             }
-            if(v->kind == OperandKind::TEMP)
+            if (v->kind == OperandKind::TEMP)
             {
-                if(v->u.TEMP->type == TempType::INT_TEMP)
+                if (v->u.TEMP->type == TempType::INT_TEMP)
                 {
                     os << "i32 ";
                 }
-                else if(v->u.TEMP->type == TempType::INT_PTR)
+                else if (v->u.TEMP->type == TempType::INT_PTR)
                 {
                     os << "i32* ";
                 }
-                else if(v->u.TEMP->type == TempType::STRUCT_TEMP)
+                else if (v->u.TEMP->type == TempType::STRUCT_TEMP)
                 {
                     os << "%" << v->u.TEMP->structname << " ";
                 }
@@ -321,21 +323,21 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
                     os << "%" << v->u.TEMP->structname << "* ";
                 }
             }
-            else if(v->kind == OperandKind::ICONST)
+            else if (v->kind == OperandKind::ICONST)
             {
                 os << "i32 ";
             }
             else
             {
-                if(v->u.NAME->type == TempType::INT_PTR)
+                if (v->u.NAME->type == TempType::INT_PTR)
                 {
                     os << "i32* ";
                 }
-                else if(v->u.NAME->type == TempType::STRUCT_TEMP)
+                else if (v->u.NAME->type == TempType::STRUCT_TEMP)
                 {
                     os << "%" << v->u.NAME->structname << "* ";
                 }
-                else if(v->u.NAME->type == TempType::STRUCT_PTR)
+                else if (v->u.NAME->type == TempType::STRUCT_PTR)
                 {
                     os << "%" << v->u.NAME->structname << "* ";
                 }
@@ -344,7 +346,7 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
                     assert(0);
                 }
             }
-            printL_oper(os,v);
+            printL_oper(os, v);
         }
         os << ")";
         break;
@@ -352,14 +354,14 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
     case L_StmKind::T_CJUMP:
     {
         os << "  br i1 ";
-        printL_oper(os,stm->u.CJUMP->dst);
+        printL_oper(os, stm->u.CJUMP->dst);
         os << ", label %" << stm->u.CJUMP->true_label->name << ", label %" << stm->u.CJUMP->false_label->name << "\n";
         break;
     }
     case L_StmKind::T_CMP:
     {
         os << "  ";
-        printL_oper(os,stm->u.CMP->dst);
+        printL_oper(os, stm->u.CMP->dst);
         os << " = icmp ";
         switch (stm->u.CMP->op)
         {
@@ -397,17 +399,17 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
             break;
         }
         os << "i32 ";
-        printL_oper(os,stm->u.CMP->left);
+        printL_oper(os, stm->u.CMP->left);
         os << ", ";
-        printL_oper(os,stm->u.CMP->right);
+        printL_oper(os, stm->u.CMP->right);
         break;
     }
     case L_StmKind::T_GEP:
     {
         os << "  ";
-        printL_oper(os,stm->u.GEP->new_ptr);
+        printL_oper(os, stm->u.GEP->new_ptr);
         os << " = getelementptr ";
-        if(stm->u.GEP->base_ptr->kind == OperandKind::TEMP)
+        if (stm->u.GEP->base_ptr->kind == OperandKind::TEMP)
         {
             switch (stm->u.GEP->base_ptr->u.TEMP->type)
             {
@@ -418,16 +420,16 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
             }
             case TempType::INT_PTR:
             {
-                if(stm->u.GEP->base_ptr->u.TEMP->len == -1 || stm->u.GEP->base_ptr->u.TEMP->len == 0)
+                if (stm->u.GEP->base_ptr->u.TEMP->len == -1 || stm->u.GEP->base_ptr->u.TEMP->len == 0)
                 {
                     os << "i32, i32* ";
-                    printL_oper(os,stm->u.GEP->base_ptr);
+                    printL_oper(os, stm->u.GEP->base_ptr);
                 }
                 else
                 {
                     os << "[" << stm->u.GEP->base_ptr->u.TEMP->len << " x i32 ], ";
                     os << "[" << stm->u.GEP->base_ptr->u.TEMP->len << " x i32 ]* ";
-                    printL_oper(os,stm->u.GEP->base_ptr);
+                    printL_oper(os, stm->u.GEP->base_ptr);
                     os << ", i32 0";
                 }
                 break;
@@ -439,22 +441,24 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
             }
             case TempType::STRUCT_PTR:
             {
-                if(stm->u.GEP->base_ptr->u.TEMP->len == 0)
+                if (stm->u.GEP->base_ptr->u.TEMP->len == 0)
                 {
                     os << "%" << stm->u.GEP->base_ptr->u.TEMP->structname << ", %" << stm->u.GEP->base_ptr->u.TEMP->structname << "* ";
-                    printL_oper(os,stm->u.GEP->base_ptr);
+                    printL_oper(os, stm->u.GEP->base_ptr);
                     os << ", i32 0";
                 }
-                else if(stm->u.GEP->base_ptr->u.TEMP->len == -1)
+                else if (stm->u.GEP->base_ptr->u.TEMP->len == -1)
                 {
                     os << "%" << stm->u.GEP->base_ptr->u.TEMP->structname << ", %" << stm->u.GEP->base_ptr->u.TEMP->structname << "* ";
-                    printL_oper(os,stm->u.GEP->base_ptr);
+                    printL_oper(os, stm->u.GEP->base_ptr);
                 }
                 else
                 {
-                    os << "[" << stm->u.GEP->base_ptr->u.TEMP->len << " x " << "%" << stm->u.GEP->base_ptr->u.TEMP->structname << " ], ";
-                    os << "[" << stm->u.GEP->base_ptr->u.TEMP->len << " x " << "%" << stm->u.GEP->base_ptr->u.TEMP->structname << " ]* ";
-                    printL_oper(os,stm->u.GEP->base_ptr);
+                    os << "[" << stm->u.GEP->base_ptr->u.TEMP->len << " x "
+                       << "%" << stm->u.GEP->base_ptr->u.TEMP->structname << " ], ";
+                    os << "[" << stm->u.GEP->base_ptr->u.TEMP->len << " x "
+                       << "%" << stm->u.GEP->base_ptr->u.TEMP->structname << " ]* ";
+                    printL_oper(os, stm->u.GEP->base_ptr);
                     os << ", i32 0";
                 }
                 break;
@@ -463,9 +467,9 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
                 break;
             }
             os << ", i32 ";
-            printL_oper(os,stm->u.GEP->index);
+            printL_oper(os, stm->u.GEP->index);
         }
-        else if(stm->u.GEP->base_ptr->kind == OperandKind::NAME)
+        else if (stm->u.GEP->base_ptr->kind == OperandKind::NAME)
         {
             switch (stm->u.GEP->base_ptr->u.NAME->type)
             {
@@ -476,16 +480,16 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
             }
             case TempType::INT_PTR:
             {
-                if(stm->u.GEP->base_ptr->u.NAME->len == -1 || stm->u.GEP->base_ptr->u.NAME->len == 0)
+                if (stm->u.GEP->base_ptr->u.NAME->len == -1 || stm->u.GEP->base_ptr->u.NAME->len == 0)
                 {
                     os << "i32, i32* ";
-                    printL_oper(os,stm->u.GEP->base_ptr);
+                    printL_oper(os, stm->u.GEP->base_ptr);
                 }
                 else
                 {
                     os << "[" << stm->u.GEP->base_ptr->u.NAME->len << " x i32 ], ";
                     os << "[" << stm->u.GEP->base_ptr->u.NAME->len << " x i32 ]* ";
-                    printL_oper(os,stm->u.GEP->base_ptr);
+                    printL_oper(os, stm->u.GEP->base_ptr);
                     os << ", i32 0";
                 }
                 break;
@@ -493,23 +497,25 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
             case TempType::STRUCT_TEMP:
             {
                 os << "%" << stm->u.GEP->base_ptr->u.NAME->structname << ", %" << stm->u.GEP->base_ptr->u.NAME->structname << "* ";
-                printL_oper(os,stm->u.GEP->base_ptr);
+                printL_oper(os, stm->u.GEP->base_ptr);
                 os << ", i32 0";
                 break;
             }
             case TempType::STRUCT_PTR:
             {
-                if(stm->u.GEP->base_ptr->u.NAME->len == -1 || stm->u.GEP->base_ptr->u.NAME->len == 0)
+                if (stm->u.GEP->base_ptr->u.NAME->len == -1 || stm->u.GEP->base_ptr->u.NAME->len == 0)
                 {
                     os << "%" << stm->u.GEP->base_ptr->u.NAME->structname << ", %" << stm->u.GEP->base_ptr->u.NAME->structname << "* ";
-                    printL_oper(os,stm->u.GEP->base_ptr);
+                    printL_oper(os, stm->u.GEP->base_ptr);
                     os << ", i32 0";
                 }
                 else
                 {
-                    os << "[" << stm->u.GEP->base_ptr->u.NAME->len << " x " << "%" << stm->u.GEP->base_ptr->u.NAME->structname << " ], ";
-                    os << "[" << stm->u.GEP->base_ptr->u.NAME->len << " x " << "%" << stm->u.GEP->base_ptr->u.NAME->structname << " ]* ";
-                    printL_oper(os,stm->u.GEP->base_ptr);
+                    os << "[" << stm->u.GEP->base_ptr->u.NAME->len << " x "
+                       << "%" << stm->u.GEP->base_ptr->u.NAME->structname << " ], ";
+                    os << "[" << stm->u.GEP->base_ptr->u.NAME->len << " x "
+                       << "%" << stm->u.GEP->base_ptr->u.NAME->structname << " ]* ";
+                    printL_oper(os, stm->u.GEP->base_ptr);
                     os << ", i32 0";
                 }
                 break;
@@ -518,7 +524,7 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
                 break;
             }
             os << ", i32 ";
-            printL_oper(os,stm->u.GEP->index);
+            printL_oper(os, stm->u.GEP->index);
         }
         else
         {
@@ -539,17 +545,17 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
     case L_StmKind::T_LOAD:
     {
         os << "  ";
-        printL_oper(os,stm->u.LOAD->dst);
+        printL_oper(os, stm->u.LOAD->dst);
         os << " = load i32, i32* ";
-        printL_oper(os,stm->u.LOAD->ptr);
+        printL_oper(os, stm->u.LOAD->ptr);
         break;
     }
     case L_StmKind::T_MOVE:
     {
         os << "  ";
-        printL_oper(os,stm->u.MOVE->dst);
+        printL_oper(os, stm->u.MOVE->dst);
         os << " = add i32 ";
-        printL_oper(os,stm->u.MOVE->src);
+        printL_oper(os, stm->u.MOVE->src);
         os << ", 0";
         break;
     }
@@ -560,12 +566,12 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
     case L_StmKind::T_PHI:
     {
         os << "  ";
-        printL_oper(os,stm->u.PHI->dst);
+        printL_oper(os, stm->u.PHI->dst);
         os << " = phi i32";
         bool first = true;
-        for(const auto &p : stm->u.PHI->phis)
+        for (const auto &p : stm->u.PHI->phis)
         {
-            if(first)
+            if (first)
             {
                 first = false;
                 os << " [ ";
@@ -574,39 +580,39 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
             {
                 os << ", [ ";
             }
-            printL_oper(os,p.first);
+            printL_oper(os, p.first);
             os << ", %" << p.second->name << " ]";
         }
         break;
     }
     case L_StmKind::T_RETURN:
     {
-        if(stm->u.RETURN->ret == nullptr)
+        if (stm->u.RETURN->ret == nullptr)
         {
             os << "  ret void";
         }
         else
         {
             os << "  ret i32 ";
-            printL_oper(os,stm->u.RETURN->ret);
+            printL_oper(os, stm->u.RETURN->ret);
         }
         break;
     }
     case L_StmKind::T_STORE:
     {
         os << "  store i32 ";
-        printL_oper(os,stm->u.STORE->src);
+        printL_oper(os, stm->u.STORE->src);
         os << ", i32* ";
-        printL_oper(os,stm->u.STORE->ptr);
+        printL_oper(os, stm->u.STORE->ptr);
         break;
     }
     case L_StmKind::T_VOID_CALL:
     {
         os << "  call void @" << stm->u.VOID_CALL->fun << "(";
         bool first = true;
-        for(const auto &v : stm->u.VOID_CALL->args)
+        for (const auto &v : stm->u.VOID_CALL->args)
         {
-            if(first)
+            if (first)
             {
                 first = false;
             }
@@ -614,17 +620,17 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
             {
                 os << ", ";
             }
-            if(v->kind == OperandKind::TEMP)
+            if (v->kind == OperandKind::TEMP)
             {
-                if(v->u.TEMP->type == TempType::INT_TEMP)
+                if (v->u.TEMP->type == TempType::INT_TEMP)
                 {
                     os << "i32 ";
                 }
-                else if(v->u.TEMP->type == TempType::INT_PTR)
+                else if (v->u.TEMP->type == TempType::INT_PTR)
                 {
                     os << "i32* ";
                 }
-                else if(v->u.TEMP->type == TempType::STRUCT_TEMP)
+                else if (v->u.TEMP->type == TempType::STRUCT_TEMP)
                 {
                     os << "%" << v->u.TEMP->structname << " ";
                 }
@@ -633,21 +639,21 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
                     os << "%" << v->u.TEMP->structname << "* ";
                 }
             }
-            else if(v->kind == OperandKind::ICONST)
+            else if (v->kind == OperandKind::ICONST)
             {
                 os << "i32 ";
             }
             else
             {
-                if(v->u.NAME->type == TempType::INT_PTR)
+                if (v->u.NAME->type == TempType::INT_PTR)
                 {
                     os << "i32* ";
                 }
-                else if(v->u.NAME->type == TempType::STRUCT_TEMP)
+                else if (v->u.NAME->type == TempType::STRUCT_TEMP)
                 {
                     os << "%" << v->u.NAME->structname << "* ";
                 }
-                else if(v->u.NAME->type == TempType::STRUCT_PTR)
+                else if (v->u.NAME->type == TempType::STRUCT_PTR)
                 {
                     os << "%" << v->u.NAME->structname << "* ";
                 }
@@ -656,7 +662,7 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
                     assert(0);
                 }
             }
-            printL_oper(os,v);
+            printL_oper(os, v);
         }
         os << ")";
         break;
@@ -668,7 +674,7 @@ void LLVMIR::printL_stm(std::ostream &os,LLVMIR::L_stm *stm)
     os << "\n";
 }
 
-void LLVMIR::printL_oper(std::ostream &os,AS_operand *oper)
+void LLVMIR::printL_oper(std::ostream &os, AS_operand *oper)
 {
     switch (oper->kind)
     {
@@ -692,19 +698,19 @@ void LLVMIR::printL_oper(std::ostream &os,AS_operand *oper)
     }
 }
 
-void LLVMIR::printL_prog(std::ostream &os,LLVMIR::L_prog *prog)
+void LLVMIR::printL_prog(std::ostream &os, LLVMIR::L_prog *prog)
 {
-    for(const auto &def : prog->defs)
+    for (const auto &def : prog->defs)
     {
-        printL_def(os,def);
+        printL_def(os, def);
     }
-    for(const auto &func : prog->funcs)
+    for (const auto &func : prog->funcs)
     {
-        printL_func(os,func);
+        printL_func(os, func);
     }
 }
 
-void LLVMIR::printL_func(std::ostream &os,LLVMIR::L_func *func)
+void LLVMIR::printL_func(std::ostream &os, LLVMIR::L_func *func)
 {
     os << "define ";
     switch (func->ret.type)
@@ -729,9 +735,9 @@ void LLVMIR::printL_func(std::ostream &os,LLVMIR::L_func *func)
     }
     os << "@" << func->name << "(";
     bool first = true;
-    for(const auto &v : func->args)
+    for (const auto &v : func->args)
     {
-        if(first)
+        if (first)
         {
             first = false;
             os << " ";
@@ -744,12 +750,12 @@ void LLVMIR::printL_func(std::ostream &os,LLVMIR::L_func *func)
         {
         case TempType::INT_TEMP:
         {
-            os << "i32 %r" << v->num; 
+            os << "i32 %r" << v->num;
             break;
         }
         case TempType::INT_PTR:
         {
-            os << "i32* %r" << v->num; 
+            os << "i32* %r" << v->num;
             break;
         }
         case TempType::STRUCT_TEMP:
@@ -767,17 +773,17 @@ void LLVMIR::printL_func(std::ostream &os,LLVMIR::L_func *func)
         }
     }
     os << " ) {\n";
-    for(const auto &b : func->blocks)
+    for (const auto &b : func->blocks)
     {
-        printL_block(os,b);
+        printL_block(os, b);
     }
     os << "}\n\n";
 }
 
-void LLVMIR::printL_block(std::ostream &os,LLVMIR::L_block *block)
+void LLVMIR::printL_block(std::ostream &os, LLVMIR::L_block *block)
 {
-    for(const auto &ir : block->instrs)
+    for (const auto &ir : block->instrs)
     {
-        printL_stm(os,ir);
+        printL_stm(os, ir);
     }
 }
