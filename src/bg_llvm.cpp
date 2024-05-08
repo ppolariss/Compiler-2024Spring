@@ -75,9 +75,45 @@ Graph<L_block *> &Create_bg(list<L_block *> &bl)
     return RA_bg;
 }
 
-// maybe useful
-static void DFS(Node<L_block *> *r, Graph<L_block *> &bg)
+static void dfs(Node<L_block *> *r, Graph<L_block *> &bg, unordered_set<Node<L_block *> *> &visited, list<Node<L_block *> *> &visited_list)
 {
+    if (visited.find(r) != visited.end())
+    {
+        return;
+    }
+    visited.insert(r);
+    for (auto succ : *r->succ())
+    {
+        dfs(bg.mynodes[succ], bg, visited, visited_list);
+    }
+    visited_list.push_back(r);
+}
+
+// maybe useful
+list<Node<L_block *> *> DFS(Node<L_block *> *r, Graph<L_block *> &bg)
+{
+    unordered_set<Node<L_block *> *> visited = unordered_set<Node<L_block *> *>();
+    list<Node<L_block *> *> visited_list = list<Node<L_block *> *>();
+    // list<Node<L_block *> *> worklist;
+    // worklist.push_back(r);
+    // while (!worklist.empty())
+    // {
+    //     Node<L_block *> *n = worklist.front();
+    //     worklist.pop_front();
+    //     for (auto visited_node : visited)
+    //     {
+    //         if (visited_node == n)
+    //             continue;
+    //     }
+    //     for (auto succ : *n->succ())
+    //     {
+    //         worklist.push_back(bg.mynodes[succ]);
+    //     }
+    //     visited.push_back(n);
+    // }
+    dfs(r, bg, visited, visited_list);
+    visited_list.reverse();
+    return visited_list;
 }
 
 void SingleSourceGraph(Node<L_block *> *r, Graph<L_block *> &bg, L_func *fun)

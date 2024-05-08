@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <bitset>
 #include "bg_llvm.h"
 #include "graph.hpp"
 #include "liveness.h"
@@ -21,6 +22,9 @@ struct imm_Dominator
     unordered_set<LLVMIR::L_block *> succs;
 };
 
+const int bitN = 1000;
+bitset<bitN> dom[bitN];
+unordered_map<int, vector<int>> dominators_int;
 unordered_map<L_block *, unordered_set<L_block *>> dominators;
 unordered_map<L_block *, imm_Dominator> tree_dominators;
 unordered_map<L_block *, unordered_set<L_block *>> DF_array;
@@ -226,6 +230,101 @@ void mem2reg(LLVMIR::L_func *fun)
 
 void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
 {
+    // compute reverse graph
+    for (auto node : bg.mynodes)
+    {
+        revers_graph[node.second->info] = node.second;
+    }
+
+    int size = bg.nodecount;
+    // revers_graph
+    list<GRAPH::Node<LLVMIR::L_block *> *> ord = DFS(bg.mynodes[0], bg);
+    // unordered_map<int, vector<int>> pre;
+    // bool flag = true;
+    // while (flag)
+    // {
+    //     flag = false;
+    //     for (auto node : ord)
+    //     {
+    //         vector<int> p;
+    //         for (auto i : *node->pred())
+    //         {
+    //             p.push_back(i);
+    //         }
+    //         // while()
+    //     }
+    // }
+
+    bool flag = true;
+    // cout << bg.mynodes[0]->info->label->name << endl;
+    while (flag)
+    {
+        flag = false;
+        for (auto node : ord)
+        {
+            // if (node->info->label->name == "bb27")
+            // {
+            //     for (auto i : *node->pred())
+            //     {
+            //         cout << bg.mynodes[i]->info->label->name << " ";
+            //         cout << dom[bg.mynodes[i]->mykey] << endl;
+            //     }
+            //     // cout << dom[node->mykey] << endl;
+            // }
+            bitset<bitN> temp;
+            // if (node->pred()->size())
+            //     for (int i = 0; i < size; i++)
+            //     {
+            //         temp[i] = true;
+            //     }
+            for (auto i : *node->pred())
+            {
+                temp |= dom[i];
+            }
+            temp[node->mykey] = true;
+            if (temp != dom[node->mykey])
+            {
+                dom[node->mykey] = temp;
+                flag = true;
+            }
+        }
+        // flag = false;
+        // for (int u : ord)
+        // {
+        //     std::bitset<N> tmp;
+        //     tmp[u] = true;
+        //     for (int v : pre[u])
+        //     {
+        //         tmp &= dom[v];
+        //     }
+        //     if (tmp != dom[u])
+        //     {
+        //         dom[u] = tmp;
+        //         flag = true;
+        //     }
+        // }
+    }
+    for (int i = 0; i < size; i++)
+    {
+        // cout << dom[i] << endl;
+        for (int j = 0; j < size; j++)
+        {
+            if (dom[i][j])
+            {
+                dominators[bg.mynodes[i]->info].insert(bg.mynodes[j]->info);
+                dominators_int[i].push_back(j);
+            }
+        }
+    }
+    // for (auto dom : dominators)
+    // {
+    //     cout << dom.first->label->name << endl;
+    //     for (auto dom2 : dom.second)
+    //     {
+    //         cout << dom2->label->name << " ";
+    //     }
+    //     cout << endl;
+    // }
     //   Todo
 }
 
@@ -272,12 +371,117 @@ void printf_DF()
 
 void tree_Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
 {
+    int size = bg.nodecount;
+    for (auto node : bg.mynodes)
+    {
+        // revers_graph[node.second->info] = node.second;
+        tree_dominators[node.second->info].pred = nullptr;
+        tree_dominators[node.second->info].succs = unordered_set<L_block *>();
+    }
+    vector<int> idom(size, 0);
+
+    for (int u = 1; u < size; ++u)
+    {
+        for (auto v : dominators_int[u])
+        {
+            std::bitset<bitN> tmp = (dom[v] & dom[u]) ^ dom[u];
+            if (tmp.count() == 1 and tmp[u])
+            {
+                idom[u] = v;
+                break;
+            }
+        }
+    }
+    for (int u = 1; u < size; ++u)
+    {
+        int v = idom[u];
+        tree_dominators[bg.mynodes[v]->info].succs.insert(bg.mynodes[u]->info);
+        tree_dominators[bg.mynodes[u]->info].pred = bg.mynodes[v]->info;
+        // e[idom[u]].push_back(u);
+    }
+
     //   Todo
+    // for (auto node : bg.mynodes)
+    // {
+    //     tree_dominators[node.second->info].pred = bg.mynodes[node.second->info->preds[0]]->info;
+    //     tree_dominators[node.second->info].succs = dominators[node.second->info];
+    // }
+
+    // for (auto i : tree_dominators)
+    // {
+    //     cout << i.first->label->name << " ";
+    //     cout << "pred:";
+    //     if (i.second.pred)
+    //         cout << i.second.pred->label->name << " ";
+    //     cout << endl
+    //          << "succs:";
+    //     for (auto j : i.second.succs)
+    //     {
+    //         cout << j->label->name << " ";
+    //     }
+    //     cout << endl;
+    // }
 }
 
 void computeDF(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR::L_block *> *r)
 {
     //   Todo
+    // for (auto node : bg.mynodes)
+    auto DF = unordered_set<L_block *>();
+    // DF local
+    for (auto succ : *r->succ())
+    {
+        auto succNode = bg.mynodes[succ];
+        // succNode == r ||
+        if (dominators[succNode->info].find(r->info) == dominators[succNode->info].end())
+        {
+            DF.insert(succNode->info);
+        }
+    }
+    // for(auto succ : tree_dominators[node.second->info].succs)
+    // {
+    //     if(tree_dominators[succ].pred != node.second->info)
+    //     {
+    //         DF.insert(succ);
+    //     }
+    // }
+    // DF up
+    for (auto succ : tree_dominators[r->info].succs)
+    {
+        if (DF_array.find(succ) == DF_array.end())
+        {
+            computeDF(bg, revers_graph[succ]);
+        }
+        for (auto up : DF_array[succ])
+        {
+            // 严格必经节点不在n的直接必经节点中
+            auto strictlyNecessaryNode = dominators[up];
+            auto directlyNecessaryNode = tree_dominators[succ].succs;
+            if (!set_intersection(strictlyNecessaryNode, directlyNecessaryNode).empty())
+            {
+                DF.insert(up);
+            }
+            // if (tree_dominators[up].pred != node->info)
+            // {
+            //     DF.insert(up);
+            // }
+        }
+    }
+    DF_array[r->info] = DF;
+}
+
+template <typename T>
+unordered_set<T> set_intersection(unordered_set<T> &a, unordered_set<T> &b)
+{
+    unordered_set<T> ret;
+    for (auto i : a)
+    {
+        if (b.find(i) != b.end())
+        {
+            ret.insert(i);
+        }
+    }
+    return ret;
 }
 
 // 只对标量做
