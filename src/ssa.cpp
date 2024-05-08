@@ -52,7 +52,7 @@ LLVMIR::L_prog *SSA(LLVMIR::L_prog *prog)
         // Show_graph(stdout,RA_bg);
         Liveness(RA_bg.mynodes[0], RA_bg, fun->args);
         Dominators(RA_bg);
-        printf_domi();
+        // printf_domi();
         tree_Dominators(RA_bg);
         // printf_D_tree();
         // 默认0是入口block
@@ -254,6 +254,13 @@ void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
     // }
 
     bool flag = true;
+    for (int i = 0; i < size; i++)
+    {
+        for (int j = 0; j < size; j++)
+        {
+            dom[i][j] = true;
+        }
+    }
     // cout << bg.mynodes[0]->info->label->name << endl;
     while (flag)
     {
@@ -270,14 +277,14 @@ void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
             //     // cout << dom[node->mykey] << endl;
             // }
             bitset<bitN> temp;
-            // if (node->pred()->size())
-            //     for (int i = 0; i < size; i++)
-            //     {
-            //         temp[i] = true;
-            //     }
+            if (node->pred()->size())
+                for (int i = 0; i < size; i++)
+                {
+                    temp[i] = true;
+                }
             for (auto i : *node->pred())
             {
-                temp |= dom[i];
+                temp &= dom[i];
             }
             temp[node->mykey] = true;
             if (temp != dom[node->mykey])
@@ -444,25 +451,39 @@ void computeDF(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR::L_block 
     //     }
     // }
     // DF up
-    for (auto succ : tree_dominators[r->info].succs)
+    for (auto child : tree_dominators[r->info].succs)
     {
-        if (DF_array.find(succ) == DF_array.end())
+        if (DF_array.find(child) == DF_array.end())
         {
-            computeDF(bg, revers_graph[succ]);
+            computeDF(bg, revers_graph[child]);
         }
-        for (auto up : DF_array[succ])
+        for (auto child_up : DF_array[child])
         {
             // 严格必经节点不在n的直接必经节点中
-            auto strictlyNecessaryNode = dominators[up];
-            auto directlyNecessaryNode = tree_dominators[succ].succs;
-            if (!set_intersection(strictlyNecessaryNode, directlyNecessaryNode).empty())
-            {
-                DF.insert(up);
-            }
-            // if (tree_dominators[up].pred != node->info)
+            // child_up中，child 直接必经节点 不是 child_up 严格必经节点
+            unordered_set<L_block *> strictlyNecessaryNode = dominators[child_up];
+            strictlyNecessaryNode.erase(child_up);
+            L_block *directlyNecessaryNode = tree_dominators[child].pred;
+            if (strictlyNecessaryNode.find(directlyNecessaryNode) == strictlyNecessaryNode.end())
+                DF.insert(child_up);
+            // tree_dominators[child].succs;
+            // if (r->info->label->name == "bb27")
             // {
-            //     DF.insert(up);
+            //     cout << "bb27" << endl;
+            //     cout << "strictlyNecessaryNode: ";
+            //     for (auto i : strictlyNecessaryNode)
+            //     {
+            //         cout << i->label->name << " ";
+            //     }
+            //     cout << "directlyNecessaryNode: ";
+            //     for (auto i : directlyNecessaryNode)
+            //     {
+            //         cout << i->label->name << " ";
+            //     }
             // }
+            // auto intersection = set_intersection(directlyNecessaryNode, strictlyNecessaryNode);
+            // // ) || (intersection.size() == 1 && intersection.find(child) != intersection.end())
+            // if (intersection.empty())
         }
     }
     DF_array[r->info] = DF;
@@ -478,6 +499,17 @@ unordered_set<T> set_intersection(unordered_set<T> &a, unordered_set<T> &b)
         {
             ret.insert(i);
         }
+    }
+    return ret;
+}
+
+template <typename T>
+unordered_set<T> set_intersection(T &a, unordered_set<T> &b)
+{
+    unordered_set<T> ret;
+    if (b.find(a) != b.end())
+    {
+        ret.insert(a);
     }
     return ret;
 }
