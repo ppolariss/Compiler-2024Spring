@@ -136,13 +136,29 @@ void SingleSourceGraph(Node<L_block *> *r, Graph<L_block *> &bg, L_func *fun)
         }
     }
 
-    for (auto block_node : bg.mynodes)
+    for (auto it = bg.mynodes.begin(); it != bg.mynodes.end();)
     {
-        if (visited.find(block_node.second) == visited.end())
+        if (visited.find(it->second) == visited.end())
         {
-            bg.mynodes.erase(block_node.first);
+            for (auto block : fun->blocks)
+                if (block == it->second->info)
+                {
+                    fun->blocks.remove(block);
+                    break;
+                }
+            it = bg.mynodes.erase(it);
         }
+        else
+            it++;
     }
+    bg.nodecount = bg.mynodes.size();
+    // for (auto block_node : bg.mynodes)
+    // {
+    //     if (visited.find(block_node.second) == visited.end())
+    //     {
+    //         bg.mynodes.erase(block_node.first);
+    //     }
+    // }
 
     // // print bg
     // Show_graph(stdout, bg);

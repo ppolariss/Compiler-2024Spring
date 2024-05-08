@@ -52,7 +52,7 @@ LLVMIR::L_prog *SSA(LLVMIR::L_prog *prog)
         // Show_graph(stdout,RA_bg);
         Liveness(RA_bg.mynodes[0], RA_bg, fun->args);
         Dominators(RA_bg);
-        // printf_domi();
+        printf_domi();
         tree_Dominators(RA_bg);
         // printf_D_tree();
         // 默认0是入口block
@@ -232,9 +232,7 @@ void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
 {
     // compute reverse graph
     for (auto node : bg.mynodes)
-    {
         revers_graph[node.second->info] = node.second;
-    }
 
     int size = bg.nodecount;
     // revers_graph
