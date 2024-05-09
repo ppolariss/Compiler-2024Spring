@@ -44,6 +44,7 @@ LLVMIR::L_prog *SSA(LLVMIR::L_prog *prog)
 {
     for (auto &fun : prog->funcs)
     {
+        // continue;
         init_table();
         combine_addr(fun);
         mem2reg(fun);

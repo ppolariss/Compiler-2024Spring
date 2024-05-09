@@ -443,6 +443,7 @@ std::vector<LLVMIR::L_def *> ast2llvmProg_first(aA_program p)
                 assert(0);
             }
             if (funcReturnMap.find(*v->u.fnDeclStmt->fnDecl->id) == funcReturnMap.end())
+                // funcReturnMap[*v->u.fnDeclStmt->fnDecl->id] = type;
                 funcReturnMap.emplace(*v->u.fnDeclStmt->fnDecl->id, std::move(type));
             vector<TempDef> args;
             for (const auto &decl : v->u.fnDeclStmt->fnDecl->paramDecl->varDecls)
@@ -1008,7 +1009,35 @@ void ast2llvmBlock(aA_codeBlockStmt codeBlockStmt, Temp_label *con_label, Temp_l
             AS_operand *res = loadPtr(ast2llvmRightVal(arg));
             args.push_back(res);
         }
-        emit_irs.push_back(L_Voidcall(*codeBlockStmt->u.callStmt->fnCall->fn, args));
+        if (*codeBlockStmt->u.callStmt->fnCall->fn == "putint" || *codeBlockStmt->u.callStmt->fnCall->fn == "putch" || *codeBlockStmt->u.callStmt->fnCall->fn == "_sysy_starttime" || *codeBlockStmt->u.callStmt->fnCall->fn == "_sysy_stoptime" || *codeBlockStmt->u.callStmt->fnCall->fn == "putarray")
+        {
+            emit_irs.push_back(L_Voidcall(*codeBlockStmt->u.callStmt->fnCall->fn, args));
+            return;
+        }
+        // emit_irs.push_back(L_Voidcall(*codeBlockStmt->u.callStmt->fnCall->fn, args));
+        if (funcReturnMap.find(*codeBlockStmt->u.callStmt->fnCall->fn) == funcReturnMap.end())
+            assert(0);
+        switch (funcReturnMap[*codeBlockStmt->u.callStmt->fnCall->fn].type)
+        {
+        case ReturnType::VOID_TYPE:
+            emit_irs.push_back(L_Voidcall(*codeBlockStmt->u.callStmt->fnCall->fn, args));
+            break;
+        case ReturnType::INT_TYPE:
+        {
+            Temp_temp *temp = Temp_newtemp_int();
+            emit_irs.push_back(L_Call(*codeBlockStmt->u.callStmt->fnCall->fn, AS_Operand_Temp(temp), args));
+        }
+        break;
+        case ReturnType::STRUCT_TYPE:
+        {
+            Temp_temp *temp = Temp_newtemp_struct_ptr(0, funcReturnMap[*codeBlockStmt->u.callStmt->fnCall->fn].structname);
+            emit_irs.push_back(L_Call(*codeBlockStmt->u.callStmt->fnCall->fn, AS_Operand_Temp(temp), args));
+        }
+        break;
+        default:
+            assert(0);
+            break;
+        }
     }
     break;
 
