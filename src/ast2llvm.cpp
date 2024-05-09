@@ -1009,13 +1009,14 @@ void ast2llvmBlock(aA_codeBlockStmt codeBlockStmt, Temp_label *con_label, Temp_l
             AS_operand *res = loadPtr(ast2llvmRightVal(arg));
             args.push_back(res);
         }
-        // if (funcReturnMap.find(*codeBlockStmt->u.callStmt->fnCall->fn) == funcReturnMap.end())
-        //     assert(0);
         if (*codeBlockStmt->u.callStmt->fnCall->fn == "putint" || *codeBlockStmt->u.callStmt->fnCall->fn == "putch" || *codeBlockStmt->u.callStmt->fnCall->fn == "_sysy_starttime" || *codeBlockStmt->u.callStmt->fnCall->fn == "_sysy_stoptime" || *codeBlockStmt->u.callStmt->fnCall->fn == "putarray")
         {
             emit_irs.push_back(L_Voidcall(*codeBlockStmt->u.callStmt->fnCall->fn, args));
             return;
         }
+        // emit_irs.push_back(L_Voidcall(*codeBlockStmt->u.callStmt->fnCall->fn, args));
+        if (funcReturnMap.find(*codeBlockStmt->u.callStmt->fnCall->fn) == funcReturnMap.end())
+            assert(0);
         switch (funcReturnMap[*codeBlockStmt->u.callStmt->fnCall->fn].type)
         {
         case ReturnType::VOID_TYPE:
@@ -1023,8 +1024,6 @@ void ast2llvmBlock(aA_codeBlockStmt codeBlockStmt, Temp_label *con_label, Temp_l
             break;
         case ReturnType::INT_TYPE:
         {
-            // if (*codeBlockStmt->u.callStmt->fnCall->fn == "putint")
-            //     assert(0);
             Temp_temp *temp = Temp_newtemp_int();
             emit_irs.push_back(L_Call(*codeBlockStmt->u.callStmt->fnCall->fn, AS_Operand_Temp(temp), args));
         }
@@ -1036,7 +1035,7 @@ void ast2llvmBlock(aA_codeBlockStmt codeBlockStmt, Temp_label *con_label, Temp_l
         }
         break;
         default:
-            emit_irs.push_back(L_Voidcall(*codeBlockStmt->u.callStmt->fnCall->fn, args));
+            assert(0);
             break;
         }
     }

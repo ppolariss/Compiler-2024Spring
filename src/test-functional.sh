@@ -12,14 +12,14 @@ test_single() {
 	if [ $? != 0 ]; then
 		echo fail; exit -1
 	fi
-    llvm-link ./tests/$test_name.ll sylib.ll -S -o ./output/$test_name.ll
+    llvm-link-18 ./tests/$test_name.ll sylib.ll -S -o ./output/$test_name.ll
 	if [ $? != 0 ]; then
 		echo "fail to link"; exit -1
 	fi
 	if [ -f $func_testcase_dir/$test_name.in ]; then
-    	lli ./output/$test_name.ll < $func_testcase_dir/$test_name.in > output/$test_name.out
+    	lli-18 ./output/$test_name.ll < $func_testcase_dir/$test_name.in > output/$test_name.out
 	else
-    	lli ./output/$test_name.ll > ./output/$test_name.out
+    	lli-18 ./output/$test_name.ll > ./output/$test_name.out
 	fi
 	echo -e $? >> ./output/$test_name.out
 	diff -Bb ./output/$test_name.out $func_testcase_dir/$test_name.out > /dev/null 2>/dev/null
