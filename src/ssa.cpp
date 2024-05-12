@@ -44,6 +44,7 @@ LLVMIR::L_prog *SSA(LLVMIR::L_prog *prog)
 {
     for (auto &fun : prog->funcs)
     {
+        // cout << fun->name << endl;
         // continue;
         init_table();
         combine_addr(fun);
@@ -52,6 +53,7 @@ LLVMIR::L_prog *SSA(LLVMIR::L_prog *prog)
         SingleSourceGraph(RA_bg.mynodes[0], RA_bg, fun);
         // Show_graph(stdout,RA_bg);
         Liveness(RA_bg.mynodes[0], RA_bg, fun->args);
+        // Show_Liveness(stdout, RA_bg);
         Dominators(RA_bg);
         // printf_domi();
         tree_Dominators(RA_bg);
