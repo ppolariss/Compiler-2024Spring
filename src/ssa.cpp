@@ -116,6 +116,8 @@ void combine_addr(LLVMIR::L_func *fun)
 
 void mem2reg(LLVMIR::L_func *fun)
 {
+    unordered_map<AS_operand *, AS_operand *> alloca_map;
+
     for (auto &block : fun->blocks)
     {
         for (auto &stm : block->instrs)
@@ -156,42 +158,47 @@ void mem2reg(LLVMIR::L_func *fun)
         //  || stm->type == L_StmKind::T_STORE;
         for (auto it = block->instrs.begin(); it != block->instrs.end();)
         {
+
             if ((*it)->type == L_StmKind::T_LOAD && (*it)->u.LOAD->ptr->kind == OperandKind::TEMP)
+            //  stm->u.ALLOCA->dst->kind == OperandKind::TEMP && stm->u.ALLOCA->dst->u.TEMP->type == TempType::INT_PTR && stm->u.ALLOCA->dst->u.TEMP->len == 0;
             {
-                auto ptr_operand = temp2ASoper[(*it)->u.LOAD->ptr->u.TEMP];
-                if (ptr_operand)
+                if (temp2ASoper.find((*it)->u.LOAD->ptr->u.TEMP) == temp2ASoper.end())
                 {
-                    // *it = L_Move(ptr_operand, (*it)->u.LOAD->dst);
-                    it = block->instrs.erase(it);
+                    it++;
                     continue;
                 }
+                assert((*it)->u.LOAD->ptr->u.TEMP->type == TempType::INT_PTR);
+                assert((*it)->u.LOAD->ptr->u.TEMP->len == 0);
+                auto ptr_operand = temp2ASoper[(*it)->u.LOAD->ptr->u.TEMP];
+                assert(ptr_operand);
+                temp2ASoper[(*it)->u.LOAD->dst->u.TEMP] = ptr_operand;
+                // if (ptr_operand)
+                // {
+                // *it = L_Move(ptr_operand, (*it)->u.LOAD->dst);
+                it = block->instrs.erase(it);
+                continue;
+                // }
             }
-            if ((*it)->type == L_StmKind::T_STORE && (*it)->u.STORE->ptr->kind == OperandKind::TEMP)
+            else if ((*it)->type == L_StmKind::T_STORE && (*it)->u.STORE->ptr->kind == OperandKind::TEMP)
             {
+                assert((*it)->u.STORE->ptr->u.TEMP->type == TempType::INT_PTR);
+                assert((*it)->u.STORE->ptr->u.TEMP->len == 0);
                 auto store = (*it)->u.STORE;
-                if (store->src->kind == OperandKind::ICONST)
+                auto ptr_operand = temp2ASoper[store->ptr->u.TEMP];
+                assert(ptr_operand);
+                *it = L_Move(store->src, ptr_operand);
+            }
+            else
+            {
+                auto list = get_all_AS_operand(*it);
+                for (auto AS_op : list)
                 {
-                    auto const_operand = store->src;
-                    auto ptr_operand = temp2ASoper[store->ptr->u.TEMP];
-                    if (ptr_operand)
+                    if ((*AS_op)->kind == OperandKind::TEMP && (*AS_op)->u.TEMP->type == TempType::INT_TEMP)
                     {
-                        *it = L_Move(const_operand, store->ptr);
-                    }
-                }
-                else if (store->src->kind == OperandKind::TEMP)
-                {
-                    auto ptr_operand = temp2ASoper[store->ptr->u.TEMP];
-                    if (ptr_operand)
-                    {
-                        *it = L_Move(store->src, store->ptr);
-                    }
-                }
-                else if (store->src->kind == OperandKind::NAME)
-                {
-                    auto ptr_operand = temp2ASoper[store->ptr->u.TEMP];
-                    if (ptr_operand)
-                    {
-                        *it = L_Move(store->src, store->ptr);
+                        if (temp2ASoper[(*AS_op)->u.TEMP] != nullptr)
+                        {
+                            AS_op = &temp2ASoper[(*AS_op)->u.TEMP];
+                        }
                     }
                 }
             }
@@ -546,7 +553,6 @@ static list<AS_operand **> get_use_int_operand(LLVMIR::L_stm *stm)
 // 只对标量做
 void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
 {
-
     //   Todo
     unordered_map<AS_operand *, unordered_set<GRAPH::Node<LLVMIR::L_block *> *>> def_sites;
     unordered_map<GRAPH::Node<LLVMIR::L_block *> *, unordered_set<AS_operand *>> A_orig;
@@ -583,34 +589,44 @@ void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
         auto w = def_site.second;
         while (!w.empty())
         {
-            cout << "Place_phi_fu" << endl;
+            // cout << w.size() << endl;
             auto n = *w.begin();
             w.erase(w.begin());
             if (A_phi.find(n) == A_phi.end())
-            {
                 A_phi[n] = unordered_set<AS_operand *>();
-            }
             for (auto y : DF_array[n->info])
             {
                 auto y_node = revers_graph[y];
-                // assert(a->kind == OperandKind::TEMP);
-                // if (FG_In(y_node).find(a->u.TEMP) == FG_In(y_node).end())
+                cout << y_node->info->label->name << endl;
+                assert(a->kind == OperandKind::TEMP);
+                auto in = FG_In(y_node);
+                bool flag = false;
+                for (auto x : in)
+                {
+                    cout << x->num << " ";
+                    if (x->num == a->u.TEMP->num)
+                    {
+                        flag = true;
+                        break;
+                    }
+                }
+                // if (!flag)
                 //     continue;
-
                 if (A_phi[y_node].find(a) == A_phi[y_node].end())
                 {
                     std::vector<std::pair<AS_operand *, Temp_label *>> phis;
                     for (auto z : *y_node->pred())
                     {
                         auto label = bg.mynodes[z]->info->label;
-                        phis.push_back(make_pair(AS_Operand_Temp(a->u.TEMP), label));
+                        phis.push_back(make_pair(a, label));
                     }
-                    y->instrs.push_front(L_Phi(a, phis));
+                    y->instrs.insert(++y->instrs.begin(), L_Phi(a, phis));
+                    // y->instrs.push_front(L_Phi(a, phis));
                     A_phi[y_node].insert(a);
-                }
-                if (A_orig[y_node].find(a) != A_orig[y_node].end())
-                {
-                    w.insert(revers_graph[y]);
+                    if (A_orig[y_node].find(a) != A_orig[y_node].end())
+                    {
+                        w.insert(revers_graph[y]);
+                    }
                 }
             }
         }
