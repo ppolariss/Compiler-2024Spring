@@ -418,13 +418,13 @@ static bool LivenessIteration(GRAPH::Node<LLVMIR::L_block *> *r, GRAPH::Graph<LL
         if (!TempSet_eq(&new_in, &in))
         {
             changed = true;
-            // in = new_in;
+            in = new_in;
             InOutTable[block].in = in;
         }
         if (!TempSet_eq(&new_out, &out))
         {
             changed = true;
-            // out = new_out;
+            out = new_out;
             InOutTable[block].out = out;
         }
     }

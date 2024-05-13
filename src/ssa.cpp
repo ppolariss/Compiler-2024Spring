@@ -517,12 +517,6 @@ unordered_set<T> set_intersection(T &a, unordered_set<T> &b)
     return ret;
 }
 
-// 只对标量做
-void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
-{
-    //   Todo
-}
-
 static list<AS_operand **> get_def_int_operand(LLVMIR::L_stm *stm)
 {
     list<AS_operand **> ret1 = get_def_operand(stm), ret2;
@@ -547,6 +541,80 @@ static list<AS_operand **> get_use_int_operand(LLVMIR::L_stm *stm)
         }
     }
     return ret2;
+}
+
+// 只对标量做
+void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
+{
+
+    //   Todo
+    unordered_map<AS_operand *, unordered_set<GRAPH::Node<LLVMIR::L_block *> *>> def_sites;
+    unordered_map<GRAPH::Node<LLVMIR::L_block *> *, unordered_set<AS_operand *>> A_orig;
+    for (auto &block : fun->blocks)
+    {
+        unordered_set<AS_operand *> temp;
+        auto node = revers_graph[block];
+        assert(node);
+        for (auto &stm : block->instrs)
+        {
+            auto def_operand = get_def_int_operand(stm);
+            for (auto def : def_operand)
+            {
+                if ((*def)->kind == OperandKind::TEMP)
+                {
+                    def_sites[*def].insert(node);
+                    temp.insert(*def);
+                }
+            }
+            // for (auto def : def_operand)
+            // {
+            //     auto temp = (**def).u.TEMP;
+            //     def_sites[temp].insert(revers_graph[block]);
+            // }
+        }
+
+        A_orig[node] = temp;
+    }
+
+    unordered_map<GRAPH::Node<LLVMIR::L_block *> *, unordered_set<AS_operand *>> A_phi;
+    for (auto def_site : def_sites)
+    {
+        AS_operand *a = def_site.first;
+        auto w = def_site.second;
+        while (!w.empty())
+        {
+            cout << "Place_phi_fu" << endl;
+            auto n = *w.begin();
+            w.erase(w.begin());
+            if (A_phi.find(n) == A_phi.end())
+            {
+                A_phi[n] = unordered_set<AS_operand *>();
+            }
+            for (auto y : DF_array[n->info])
+            {
+                auto y_node = revers_graph[y];
+                // assert(a->kind == OperandKind::TEMP);
+                // if (FG_In(y_node).find(a->u.TEMP) == FG_In(y_node).end())
+                //     continue;
+
+                if (A_phi[y_node].find(a) == A_phi[y_node].end())
+                {
+                    std::vector<std::pair<AS_operand *, Temp_label *>> phis;
+                    for (auto z : *y_node->pred())
+                    {
+                        auto label = bg.mynodes[z]->info->label;
+                        phis.push_back(make_pair(AS_Operand_Temp(a->u.TEMP), label));
+                    }
+                    y->instrs.push_front(L_Phi(a, phis));
+                    A_phi[y_node].insert(a);
+                }
+                if (A_orig[y_node].find(a) != A_orig[y_node].end())
+                {
+                    w.insert(revers_graph[y]);
+                }
+            }
+        }
+    }
 }
 
 static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR::L_block *> *n, unordered_map<Temp_temp *, stack<Temp_temp *>> &Stack)
