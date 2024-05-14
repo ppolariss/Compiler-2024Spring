@@ -255,6 +255,7 @@ std::list<AS_operand **> get_use_operand(L_stm *stm)
     break;
     case L_StmKind::T_CJUMP:
     {
+        AS_operand_list.push_back(&(stm->u.CJUMP->dst));
     }
     break;
     case L_StmKind::T_MOVE:

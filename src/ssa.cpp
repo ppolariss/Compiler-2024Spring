@@ -120,122 +120,78 @@ void mem2reg(LLVMIR::L_func *fun)
 
     for (auto &block : fun->blocks)
     {
+        list<LLVMIR::L_stm *> new_list;
         for (auto &stm : block->instrs)
         {
-            if (is_mem_variable(stm))
+            switch (stm->type)
             {
-                auto temp = stm->u.ALLOCA->dst->u.TEMP;
-                // auto AS_op = temp2ASoper[temp];
-                // if (AS_op == nullptr)
-                auto var = AS_Operand_Temp(temp);
-                auto zero = AS_Operand_Const(0);
-                // auto var_ptr  = &var;
-                // var_ptr = &zero;
-                temp2ASoper[temp] = zero;
-                // ),AS_op
-                stm = L_Move(zero, var);
-            }
-            // else
-            // {
-            //     auto list = get_def_operand(stm);
-            //     for (auto AS_op : list)
-            //     {
-            //         auto temp = (*AS_op)->u.TEMP;
-            //         if (temp2ASoper[temp] == nullptr)
-            //         {
-            //             temp2ASoper[temp] = AS_Operand_Temp(temp);
-            //         }
-            //         *AS_op = temp2ASoper[temp];
-            //     }
-            // }
-        }
-    }
-
-    for (auto &block : fun->blocks)
-    {
-        // block->instrs.remove_if([](L_stm *stm)
-        //                         { return stm->type == L_StmKind::T_LOAD; });
-        //  || stm->type == L_StmKind::T_STORE;
-        for (auto it = block->instrs.begin(); it != block->instrs.end();)
-        {
-
-            if ((*it)->type == L_StmKind::T_LOAD && (*it)->u.LOAD->ptr->kind == OperandKind::TEMP)
-            //  stm->u.ALLOCA->dst->kind == OperandKind::TEMP && stm->u.ALLOCA->dst->u.TEMP->type == TempType::INT_PTR && stm->u.ALLOCA->dst->u.TEMP->len == 0;
+            case L_StmKind::T_ALLOCA:
             {
-                if (temp2ASoper.find((*it)->u.LOAD->ptr->u.TEMP) == temp2ASoper.end())
+                if (is_mem_variable(stm))
                 {
-                    it++;
+                    auto var = stm->u.ALLOCA->dst;
+                    auto zero = AS_Operand_Temp(Temp_newtemp_int());
+                    // AS_Operand_Const(0);
+                    alloca_map[var] = zero;
+                    new_list.push_back(L_Move(AS_Operand_Const(0), zero));
+                    // new_list.push_back(L_Move(zero, var));
                     continue;
                 }
-                assert((*it)->u.LOAD->ptr->u.TEMP->type == TempType::INT_PTR);
-                assert((*it)->u.LOAD->ptr->u.TEMP->len == 0);
-                auto ptr_operand = temp2ASoper[(*it)->u.LOAD->ptr->u.TEMP];
-                assert(ptr_operand);
-                temp2ASoper[(*it)->u.LOAD->dst->u.TEMP] = ptr_operand;
-                // if (ptr_operand)
-                // {
-                // *it = L_Move(ptr_operand, (*it)->u.LOAD->dst);
-                it = block->instrs.erase(it);
-                continue;
-                // }
             }
-            else if ((*it)->type == L_StmKind::T_STORE && (*it)->u.STORE->ptr->kind == OperandKind::TEMP)
+            break;
+            case L_StmKind::T_LOAD:
             {
-                assert((*it)->u.STORE->ptr->u.TEMP->type == TempType::INT_PTR);
-                assert((*it)->u.STORE->ptr->u.TEMP->len == 0);
-                auto store = (*it)->u.STORE;
-                auto ptr_operand = temp2ASoper[store->ptr->u.TEMP];
-                assert(ptr_operand);
-                *it = L_Move(store->src, ptr_operand);
-            }
-            else
-            {
-                auto list = get_all_AS_operand(*it);
-                for (auto AS_op : list)
+                if (stm->u.LOAD->ptr->kind == OperandKind::TEMP)
                 {
-                    if ((*AS_op)->kind == OperandKind::TEMP && (*AS_op)->u.TEMP->type == TempType::INT_TEMP)
+                    assert(stm->u.LOAD->dst->kind == OperandKind::TEMP);
+                    assert(stm->u.LOAD->ptr->kind == OperandKind::TEMP);
+                    assert(stm->u.LOAD->ptr->u.TEMP->type == TempType::INT_PTR);
+                    assert(stm->u.LOAD->ptr->u.TEMP->len == 0);
+                    auto var = alloca_map[stm->u.LOAD->ptr];
+                    // assert(var);
+                    if (var)
                     {
-                        if (temp2ASoper[(*AS_op)->u.TEMP] != nullptr)
-                        {
-                            AS_op = &temp2ASoper[(*AS_op)->u.TEMP];
-                        }
+                        alloca_map[stm->u.LOAD->dst] = var;
+                        continue;
                     }
                 }
             }
-            it++;
+            break;
+            case L_StmKind::T_STORE:
+            {
+                if (stm->u.STORE->ptr->kind == OperandKind::TEMP)
+                {
+                    assert(stm->u.STORE->ptr->u.TEMP->type == TempType::INT_PTR);
+                    assert(stm->u.STORE->ptr->u.TEMP->len == 0);
+                    auto ptr_operand = alloca_map[stm->u.STORE->ptr];
+                    // assert(ptr_operand);
+                    if (ptr_operand)
+                    {
+                        new_list.push_back(L_Move(stm->u.STORE->src, ptr_operand));
+                        continue;
+                    }
+                }
+            }
+            break;
+            default:
+                break;
+            }
+
+            auto list = get_all_AS_operand(stm);
+            for (auto AS_op : list)
+            {
+                if ((*AS_op)->kind == OperandKind::TEMP && (*AS_op)->u.TEMP->type == TempType::INT_TEMP)
+                {
+                    if (alloca_map.find(*AS_op) != alloca_map.end())
+                    {
+                        *AS_op = alloca_map[*AS_op];
+                    }
+                }
+            }
+            new_list.push_back(stm);
         }
-        // if (stm->type == L_StmKind::T_STORE)
-        // {
-        //     if (stm->u.STORE->src->kind == OperandKind::ICONST)
-        //     {
-        //         auto const_operand = stm->u.STORE->src;
-        //         // temp2ASoper[stm->u.STORE->ptr->u.TEMP] = const_operand;
-        //         stm = L_Move(const_operand, stm->u.STORE->ptr);
-        //         // block->instrs.remove(stm);
-        //     }
-        //     else if (stm->u.STORE->src->kind == OperandKind::TEMP)
-        //     {
-        //         if (stm->u.STORE->ptr->kind == OperandKind::TEMP)
-        //         {
-        //             // temp2ASoper[stm->u.STORE->ptr->u.TEMP] = stm->u.STORE->src;
-        //             auto ptr_operand = temp2ASoper[stm->u.STORE->ptr->u.TEMP];
-        //             if (ptr_operand)
-        //                 stm = L_Move(stm->u.STORE->src, stm->u.STORE->ptr);
-        //         }
-        //     }
-        //     else if (stm->u.STORE->src->kind == OperandKind::NAME)
-        //     {
-        //         if (stm->u.STORE->ptr->kind == OperandKind::TEMP)
-        //         {
-        //             // temp2ASoper[stm->u.STORE->ptr->u.TEMP] = stm->u.STORE->src;
-        //             auto ptr_operand = temp2ASoper[stm->u.STORE->ptr->u.TEMP];
-        //             if (ptr_operand)
-        //                 stm = L_Move(stm->u.STORE->src, stm->u.STORE->ptr);
-        //         }
-        //     }
-        // }
+        block->instrs = new_list;
     }
-    //   Todo
 }
 
 void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
@@ -529,6 +485,7 @@ static list<AS_operand **> get_def_int_operand(LLVMIR::L_stm *stm)
     list<AS_operand **> ret1 = get_def_operand(stm), ret2;
     for (auto AS_op : ret1)
     {
+        assert((**AS_op).kind == OperandKind::TEMP);
         if ((**AS_op).u.TEMP->type == TempType::INT_TEMP)
         {
             ret2.push_back(AS_op);
@@ -542,6 +499,9 @@ static list<AS_operand **> get_use_int_operand(LLVMIR::L_stm *stm)
     list<AS_operand **> ret1 = get_use_operand(stm), ret2;
     for (auto AS_op : ret1)
     {
+        if ((**AS_op).kind != OperandKind::TEMP)
+            continue;
+        // assert((**AS_op).kind == OperandKind::TEMP);
         if ((**AS_op).u.TEMP->type == TempType::INT_TEMP)
         {
             ret2.push_back(AS_op);
@@ -550,11 +510,12 @@ static list<AS_operand **> get_use_int_operand(LLVMIR::L_stm *stm)
     return ret2;
 }
 
+unordered_map<AS_operand *, unordered_set<GRAPH::Node<LLVMIR::L_block *> *>> def_sites;
+
 // 只对标量做
 void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
 {
     //   Todo
-    unordered_map<AS_operand *, unordered_set<GRAPH::Node<LLVMIR::L_block *> *>> def_sites;
     unordered_map<GRAPH::Node<LLVMIR::L_block *> *, unordered_set<AS_operand *>> A_orig;
     for (auto &block : fun->blocks)
     {
@@ -597,21 +558,11 @@ void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
             for (auto y : DF_array[n->info])
             {
                 auto y_node = revers_graph[y];
-                cout << y_node->info->label->name << endl;
+                // cout << y_node->info->label->name << endl;
                 assert(a->kind == OperandKind::TEMP);
                 auto in = FG_In(y_node);
-                bool flag = false;
-                for (auto x : in)
-                {
-                    cout << x->num << " ";
-                    if (x->num == a->u.TEMP->num)
-                    {
-                        flag = true;
-                        break;
-                    }
-                }
-                // if (!flag)
-                //     continue;
+                if (in.find(a->u.TEMP) == in.end())
+                    continue;
                 if (A_phi[y_node].find(a) == A_phi[y_node].end())
                 {
                     std::vector<std::pair<AS_operand *, Temp_label *>> phis;
@@ -633,12 +584,103 @@ void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
     }
 }
 
+// unordered_map<AS_operand *, int> AScount;
+unordered_map<Temp_temp *, stack<Temp_temp *>> ASstack;
+// unordered_map<Temp_temp *, stack<Temp_temp *>> &Stack
 static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR::L_block *> *n, unordered_map<Temp_temp *, stack<Temp_temp *>> &Stack)
 {
+    unordered_map<L_stm *, list<AS_operand **>> def_operand_map;
+    vector<Temp_temp *> push_temp;
     //   Todo
+    for (auto &stm : n->info->instrs)
+    {
+        if (stm->type != L_StmKind::T_PHI)
+        {
+            auto use_operand = get_use_int_operand(stm);
+            for (auto use_x : use_operand)
+            {
+                // if (!ASstack[(*use_x)->u.TEMP].size())
+                //     ASstack[(*use_x)->u.TEMP].push((*use_x)->u.TEMP);
+                if (ASstack[(*use_x)->u.TEMP].size())
+                {
+                    auto top = ASstack[(*use_x)->u.TEMP].top();
+                    assert(top);
+                    *use_x = AS_Operand_Temp(top);
+                }
+            }
+        }
+        auto def_operand = get_def_int_operand(stm);
+        for (auto def_x : def_operand)
+        {
+            // AScount[*def_x]++;
+            auto i = Temp_newtemp_int();
+            // if (i->num == 279)
+            //     assert(0);
+            push_temp.push_back((*def_x)->u.TEMP);
+            ASstack[(*def_x)->u.TEMP].push(i);
+            *def_x = AS_Operand_Temp(i);
+        }
+    }
+
+    for (auto succ : *n->succ())
+    {
+        int order = 0;
+        for (auto pred : *bg.mynodes[succ]->pred())
+        {
+            if (pred == n->mykey)
+                break;
+            order++;
+        }
+        for (auto &stm : bg.mynodes[succ]->info->instrs)
+        {
+            if (stm->type == L_StmKind::T_PHI)
+            {
+                auto phi = stm->u.PHI->phis[order];
+                stm->u.PHI->phis[order] = make_pair(AS_Operand_Temp(ASstack[phi.first->u.TEMP].top()), phi.second);
+            }
+        }
+        // for (auto &stm : bg.mynodes[succ]->info->instrs)
+        // {
+        //     if (stm->type == L_StmKind::T_PHI)
+        //     {
+        //         auto temp = stm->u.PHI->phis;
+        //         for (int i = 0; i < temp.size(); i++)
+        //         {
+        //             auto phi = temp[i];
+        //             auto j = phi.second;
+        //             if (j->name == n->info->label->name)
+        //             {
+        //                 auto as_temp = ASstack[phi.first->u.TEMP].top();
+        //                 // phi.first->u.TEMP = as_temp;
+        //                 stm->u.PHI->phis[i] = make_pair(AS_Operand_Temp(as_temp), j);
+        //                 break;
+        //             }
+        //         }
+        //     }
+        // }
+    }
+
+    for (auto son : tree_dominators[n->info].succs)
+        Rename_temp(bg, revers_graph[son], Stack);
+
+    for (auto m : push_temp)
+    {
+        ASstack[m].pop();
+    }
 }
 
 void Rename(GRAPH::Graph<LLVMIR::L_block *> &bg)
 {
     //   Todo
+    for (auto def_site : def_sites)
+    {
+        if (def_site.first->kind == OperandKind::TEMP)
+            continue;
+        auto temp = def_site.first->u.TEMP;
+        assert(temp);
+        ASstack[temp] = stack<Temp_temp *>();
+        // AScount[def_site.first] = 0;
+        ASstack[temp].push(temp);
+    }
+    Rename_temp(bg, bg.mynodes[0], ASstack);
 }
