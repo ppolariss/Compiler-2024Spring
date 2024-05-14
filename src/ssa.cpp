@@ -205,6 +205,9 @@ void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
         revers_graph[node.second->info] = node.second;
 
     int size = bg.nodecount;
+    assert(bg.nodecount == bg.mynodes.size());
+    if (size > 1000)
+        assert(0);
     // revers_graph
     list<GRAPH::Node<LLVMIR::L_block *> *> ord = DFS(bg.mynodes[0], bg);
     // unordered_map<int, vector<int>> pre;
@@ -286,6 +289,12 @@ void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
         {
             if (dom[i][j])
             {
+                assert(bg.mynodes[i]);
+                assert(bg.mynodes[j]);
+                assert(bg.mynodes[j]->info);
+                assert(bg.mynodes[i]->info);
+                if (!dominators.count(bg.mynodes[i]->info))
+                    dominators[bg.mynodes[i]->info] = unordered_set<L_block *>();
                 dominators[bg.mynodes[i]->info].insert(bg.mynodes[j]->info);
                 dominators_int[i].push_back(j);
             }

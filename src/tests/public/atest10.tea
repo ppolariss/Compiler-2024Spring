@@ -1,0 +1,25 @@
+struct man{
+    name: int,
+    age: int
+}
+
+
+struct MyStruct{
+    a[10]:man,
+    b:man,
+    c[10]:int,
+    d:man
+}
+
+let f:MyStruct;
+
+fn main()->int{
+    f.a[0].name = 1;
+    f.a[0].age = 2;
+    f.b.name = 3;
+    f.b.age = 4;
+    f.c[0] = 5;
+    f.d.name = 6;
+    f.d.age = -11;
+    ret f.a[0].name + f.a[0].age + f.b.name + f.b.age + f.c[0] + f.d.name + f.d.age;
+}

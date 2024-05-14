@@ -1,0 +1,10 @@
+let a[10]:int;
+struct b {
+    a[10]:int
+}
+fn main()->int{
+    a[0]=5;
+    let bb:b;
+    bb.a[0]=5;
+    ret a[0] == bb.a[0];
+}
