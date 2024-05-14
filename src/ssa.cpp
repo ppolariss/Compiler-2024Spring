@@ -198,12 +198,15 @@ void mem2reg(LLVMIR::L_func *fun)
     }
 }
 
-void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
+static void compute_reverse_graph(GRAPH::Graph<LLVMIR::L_block *> bg)
 {
-    // compute reverse graph
     for (auto node : bg.mynodes)
         revers_graph[node.second->info] = node.second;
+}
 
+void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
+{
+    compute_reverse_graph(bg);
     int size = bg.nodecount;
     // assert(bg.nodecount == bg.mynodes.size());
     if (size > 1000)

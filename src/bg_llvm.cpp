@@ -116,6 +116,70 @@ list<Node<L_block *> *> DFS(Node<L_block *> *r, Graph<L_block *> &bg)
     return visited_list;
 }
 
+void clear_bb(LLVMIR::L_func *fun,
+              unordered_set<L_block *> &deleted_blocks)
+{
+    // clear bb
+    auto blocks = fun->blocks;
+    unordered_map<Temp_label *, Temp_label *> block_map;
+    unordered_set<L_block *> block_set;
+    for (auto &block : blocks)
+    {
+        if (block->instrs.size() == 2 && block->instrs.back()->type == L_StmKind::T_JUMP)
+        {
+            block_map[block->label] = block->instrs.back()->u.JUMP->jump;
+            block_set.insert(block);
+        }
+    }
+    if (!block_set.size())
+        return;
+
+    for (auto block : block_set)
+        deleted_blocks.insert(block);
+    for (auto m : block_map)
+    {
+        auto block = m.second;
+        while (block_map.find(block) != block_map.end())
+        {
+            block = block_map[block];
+        }
+        block_map[m.first] = block;
+    }
+    // list<L_block *> new_blocks;
+    fun->blocks.clear();
+    for (auto &block : blocks)
+    {
+        if (block_set.find(block) != block_set.end())
+            continue;
+        for (auto stm : block->instrs)
+        {
+            if (stm->type == L_StmKind::T_JUMP)
+            {
+                auto jump_label = stm->u.JUMP->jump;
+                if (block_map.find(jump_label) != block_map.end())
+                {
+                    stm->u.JUMP->jump = block_map[jump_label];
+                }
+            }
+            else if (stm->type == L_StmKind::T_CJUMP)
+            {
+                auto jump_label = stm->u.CJUMP->true_label;
+                if (block_map.find(jump_label) != block_map.end())
+                {
+                    stm->u.CJUMP->true_label = block_map[jump_label];
+                }
+                jump_label = stm->u.CJUMP->false_label;
+                if (block_map.find(jump_label) != block_map.end())
+                {
+                    stm->u.CJUMP->false_label = block_map[jump_label];
+                }
+            }
+        }
+        fun->blocks.push_back(block);
+    }
+    // fun->blocks = new_blocks;
+}
+
 void SingleSourceGraph(Node<L_block *> *r, Graph<L_block *> &bg, L_func *fun)
 {
     if (r->inDegree())
@@ -151,19 +215,27 @@ void SingleSourceGraph(Node<L_block *> *r, Graph<L_block *> &bg, L_func *fun)
         it++;
     }
 
+    // unordered_map<L_block *, Node<LLVMIR::L_block *> *> revers_graph;
+    // for (auto node : bg.mynodes)
+    //     revers_graph[node.second->info] = node.second;
+    // clear_bb(fun, deleted_blocks);
+    // for (auto block : deleted_blocks)
+    //     deleted_nodes.insert(revers_graph[block]);
+
     if (deleted_nodes.size())
     {
+        list<L_block *> new_blocks;
+        for (auto block : fun->blocks)
+            if (deleted_blocks.find(block) == deleted_blocks.end())
+                new_blocks.push_back(block);
+        fun->blocks = new_blocks;
+        // return Create_bg(fun->blocks);
         for (auto node : deleted_nodes)
         {
             node->succs.clear();
             node->preds.clear();
             bg.rmNode(node);
         }
-        list<L_block *> new_blocks;
-        for (auto block : fun->blocks)
-            if (deleted_blocks.find(block) == deleted_blocks.end())
-                new_blocks.push_back(block);
-        fun->blocks = new_blocks;
         // bg.nodecount = bg.mynodes.size();
 
         // double free or corruption
