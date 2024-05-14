@@ -1,0 +1,18 @@
+struct A {
+    a: int
+}
+
+fn test(a: int)  {
+    let x: A;
+    x.a = a;
+    //ret x;//bug
+}
+
+fn main()->int{
+  ret 1;
+  //  ret test(1).a;
+}
+
+  //  let a;
+  //  a = 1;
+  //  ret a;

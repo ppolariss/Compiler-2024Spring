@@ -45,7 +45,6 @@ LLVMIR::L_prog *SSA(LLVMIR::L_prog *prog)
     for (auto &fun : prog->funcs)
     {
         // cout << fun->name << endl;
-        // continue;
         init_table();
         combine_addr(fun);
         mem2reg(fun);
@@ -62,6 +61,7 @@ LLVMIR::L_prog *SSA(LLVMIR::L_prog *prog)
         computeDF(RA_bg, RA_bg.mynodes[0]);
         // printf_DF();
         Place_phi_fu(RA_bg, fun);
+        // continue;
         Rename(RA_bg);
         combine_addr(fun);
     }
@@ -530,6 +530,7 @@ void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
 {
     //   Todo
     unordered_map<GRAPH::Node<LLVMIR::L_block *> *, unordered_set<AS_operand *>> A_orig;
+    // calculate def_sites and A_orig
     for (auto &block : fun->blocks)
     {
         unordered_set<AS_operand *> temp;
@@ -546,13 +547,7 @@ void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
                     temp.insert(*def);
                 }
             }
-            // for (auto def : def_operand)
-            // {
-            //     auto temp = (**def).u.TEMP;
-            //     def_sites[temp].insert(revers_graph[block]);
-            // }
         }
-
         A_orig[node] = temp;
     }
 
@@ -563,15 +558,13 @@ void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
         auto w = def_site.second;
         while (!w.empty())
         {
-            // cout << w.size() << endl;
             auto n = *w.begin();
             w.erase(w.begin());
-            if (A_phi.find(n) == A_phi.end())
-                A_phi[n] = unordered_set<AS_operand *>();
+            // if (A_phi.find(n) == A_phi.end())
+            //     A_phi[n] = unordered_set<AS_operand *>();
             for (auto y : DF_array[n->info])
             {
                 auto y_node = revers_graph[y];
-                // cout << y_node->info->label->name << endl;
                 assert(a->kind == OperandKind::TEMP);
                 auto in = FG_In(y_node);
                 if (in.find(a->u.TEMP) == in.end())
@@ -579,7 +572,7 @@ void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
                 if (A_phi[y_node].find(a) == A_phi[y_node].end())
                 {
                     std::vector<std::pair<AS_operand *, Temp_label *>> phis;
-                    for (auto z : *y_node->pred())
+                    for (int z : *y_node->pred())
                     {
                         auto label = bg.mynodes[z]->info->label;
                         phis.push_back(make_pair(a, label));
@@ -587,7 +580,8 @@ void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
                     y->instrs.insert(++y->instrs.begin(), L_Phi(a, phis));
                     // y->instrs.push_front(L_Phi(a, phis));
                     A_phi[y_node].insert(a);
-                    if (A_orig[y_node].find(a) != A_orig[y_node].end())
+                    auto debug = A_orig[y_node];
+                    if (A_orig[y_node].find(a) == A_orig[y_node].end())
                     {
                         w.insert(revers_graph[y]);
                     }
@@ -595,10 +589,10 @@ void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
             }
         }
     }
+
 }
 
 // unordered_map<AS_operand *, int> AScount;
-unordered_map<Temp_temp *, stack<Temp_temp *>> ASstack;
 // unordered_map<Temp_temp *, stack<Temp_temp *>> &Stack
 static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR::L_block *> *n, unordered_map<Temp_temp *, stack<Temp_temp *>> &Stack)
 {
@@ -614,9 +608,9 @@ static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR:
             {
                 // if (!ASstack[(*use_x)->u.TEMP].size())
                 //     ASstack[(*use_x)->u.TEMP].push((*use_x)->u.TEMP);
-                if (ASstack[(*use_x)->u.TEMP].size())
+                if (Stack[(*use_x)->u.TEMP].size())
                 {
-                    auto top = ASstack[(*use_x)->u.TEMP].top();
+                    auto top = Stack[(*use_x)->u.TEMP].top();
                     assert(top);
                     *use_x = AS_Operand_Temp(top);
                 }
@@ -630,7 +624,9 @@ static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR:
             // if (i->num == 279)
             //     assert(0);
             push_temp.push_back((*def_x)->u.TEMP);
-            ASstack[(*def_x)->u.TEMP].push(i);
+            Stack[(*def_x)->u.TEMP].push(i);
+            if (i->num == 141)
+                cout << (*def_x)->u.TEMP->num << "!" << endl;
             *def_x = AS_Operand_Temp(i);
         }
     }
@@ -649,7 +645,7 @@ static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR:
             if (stm->type == L_StmKind::T_PHI)
             {
                 auto phi = stm->u.PHI->phis[order];
-                stm->u.PHI->phis[order] = make_pair(AS_Operand_Temp(ASstack[phi.first->u.TEMP].top()), phi.second);
+                stm->u.PHI->phis[order] = make_pair(AS_Operand_Temp(Stack[phi.first->u.TEMP].top()), phi.second);
             }
         }
         // for (auto &stm : bg.mynodes[succ]->info->instrs)
@@ -678,12 +674,13 @@ static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR:
 
     for (auto m : push_temp)
     {
-        ASstack[m].pop();
+        Stack[m].pop();
     }
 }
 
 void Rename(GRAPH::Graph<LLVMIR::L_block *> &bg)
 {
+    unordered_map<Temp_temp *, stack<Temp_temp *>> ASstack;
     //   Todo
     for (auto def_site : def_sites)
     {
