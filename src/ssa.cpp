@@ -205,26 +205,11 @@ void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
         revers_graph[node.second->info] = node.second;
 
     int size = bg.nodecount;
-    assert(bg.nodecount == bg.mynodes.size());
+    // assert(bg.nodecount == bg.mynodes.size());
     if (size > 1000)
         assert(0);
     // revers_graph
     list<GRAPH::Node<LLVMIR::L_block *> *> ord = DFS(bg.mynodes[0], bg);
-    // unordered_map<int, vector<int>> pre;
-    // bool flag = true;
-    // while (flag)
-    // {
-    //     flag = false;
-    //     for (auto node : ord)
-    //     {
-    //         vector<int> p;
-    //         for (auto i : *node->pred())
-    //         {
-    //             p.push_back(i);
-    //         }
-    //         // while()
-    //     }
-    // }
 
     bool flag = true;
     for (int i = 0; i < size; i++)
@@ -251,13 +236,15 @@ void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
             // }
             bitset<bitN> temp;
             if (node->pred()->size())
+            {
                 for (int i = 0; i < size; i++)
                 {
                     temp[i] = true;
                 }
-            for (auto i : *node->pred())
-            {
-                temp &= dom[i];
+                for (auto i : *node->pred())
+                {
+                    temp &= dom[i];
+                }
             }
             temp[node->mykey] = true;
             if (temp != dom[node->mykey])
@@ -282,11 +269,15 @@ void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
         //     }
         // }
     }
-    for (int i = 0; i < size; i++)
+    // for (int i = 0; i <= size; i++)
+    for (auto i_node : bg.mynodes)
     {
+        int i = i_node.first;
         // cout << dom[i] << endl;
-        for (int j = 0; j < size; j++)
+        // for (int j = 0; j <= size; j++)
+        for (auto j_node : bg.mynodes)
         {
+            int j = j_node.first;
             if (dom[i][j])
             {
                 assert(bg.mynodes[i]);
@@ -378,7 +369,11 @@ void tree_Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
     }
     for (int u = 1; u < size; ++u)
     {
+        if (!bg.mynodes[u])
+            continue;
         int v = idom[u];
+        if (!bg.mynodes[v])
+            continue;
         tree_dominators[bg.mynodes[v]->info].succs.insert(bg.mynodes[u]->info);
         tree_dominators[bg.mynodes[u]->info].pred = bg.mynodes[v]->info;
         // e[idom[u]].push_back(u);
@@ -574,13 +569,16 @@ void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
                     std::vector<std::pair<AS_operand *, Temp_label *>> phis;
                     for (int z : *y_node->pred())
                     {
+                        if (!bg.mynodes[z] || !bg.mynodes[z]->info)
+                            continue;
+                        // assert(bg.mynodes[z]);
                         auto label = bg.mynodes[z]->info->label;
                         phis.push_back(make_pair(a, label));
                     }
                     y->instrs.insert(++y->instrs.begin(), L_Phi(a, phis));
                     // y->instrs.push_front(L_Phi(a, phis));
                     A_phi[y_node].insert(a);
-                    auto debug = A_orig[y_node];
+                    // auto debug = A_orig[y_node];
                     if (A_orig[y_node].find(a) == A_orig[y_node].end())
                     {
                         w.insert(revers_graph[y]);
@@ -589,7 +587,6 @@ void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
             }
         }
     }
-
 }
 
 // unordered_map<AS_operand *, int> AScount;

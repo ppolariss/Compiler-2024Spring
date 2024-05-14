@@ -136,29 +136,50 @@ void SingleSourceGraph(Node<L_block *> *r, Graph<L_block *> &bg, L_func *fun)
         }
     }
 
+    unordered_set<Node<L_block *> *> deleted_nodes;
+    unordered_set<L_block *> deleted_blocks;
+
     for (auto it = bg.mynodes.begin(); it != bg.mynodes.end();)
     {
         if (visited.find(it->second) == visited.end())
         {
-            for (auto block : fun->blocks)
-                if (block == it->second->info)
-                {
-                    fun->blocks.remove(block);
-                    break;
-                }
-            it = bg.mynodes.erase(it);
+            deleted_nodes.insert(it->second);
+            deleted_blocks.insert(it->second->info);
+            // it = it->second->mygraph->mynodes.erase(it);
         }
-        else
-            it++;
+        // else
+        it++;
     }
-    bg.nodecount = bg.mynodes.size();
-    // for (auto block_node : bg.mynodes)
-    // {
-    //     if (visited.find(block_node.second) == visited.end())
-    //     {
-    //         bg.mynodes.erase(block_node.first);
-    //     }
-    // }
+
+    if (deleted_nodes.size())
+    {
+        for (auto node : deleted_nodes)
+        {
+            node->succs.clear();
+            node->preds.clear();
+            bg.rmNode(node);
+        }
+        list<L_block *> new_blocks;
+        for (auto block : fun->blocks)
+            if (deleted_blocks.find(block) == deleted_blocks.end())
+                new_blocks.push_back(block);
+        fun->blocks = new_blocks;
+        // bg.nodecount = bg.mynodes.size();
+
+        // double free or corruption
+        for (auto node : bg.mynodes)
+        {
+            for (auto it = node.second->preds.begin(); it != node.second->preds.end();)
+            {
+                if (deleted_nodes.find(bg.mynodes[*it]) != deleted_nodes.end())
+                {
+                    it = bg.mynodes[node.first]->preds.erase(it);
+                }
+                else
+                    it++;
+            }
+        }
+    }
 
     // // print bg
     // Show_graph(stdout, bg);
