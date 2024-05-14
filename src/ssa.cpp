@@ -167,7 +167,11 @@ void mem2reg(LLVMIR::L_func *fun)
                     // assert(ptr_operand);
                     if (ptr_operand)
                     {
-                        new_list.push_back(L_Move(stm->u.STORE->src, ptr_operand));
+                        auto src = alloca_map[stm->u.STORE->src];
+                        if (src == nullptr)
+                            new_list.push_back(L_Move(stm->u.STORE->src, ptr_operand));
+                        else
+                            new_list.push_back(L_Move(src, ptr_operand));
                         continue;
                     }
                 }
