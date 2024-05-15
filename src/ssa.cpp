@@ -1,4 +1,6 @@
 #include "ssa.h"
+
+#include <bitset>
 #include <cassert>
 #include <iostream>
 #include <list>
@@ -7,7 +9,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <bitset>
+
 #include "bg_llvm.h"
 #include "graph.hpp"
 #include "liveness.h"
@@ -31,7 +33,8 @@ unordered_map<L_block *, unordered_set<L_block *>> DF_array;
 unordered_map<L_block *, Node<LLVMIR::L_block *> *> revers_graph;
 unordered_map<Temp_temp *, AS_operand *> temp2ASoper;
 
-static void init_table()
+static void
+init_table()
 {
     dominators.clear();
     tree_dominators.clear();
@@ -40,7 +43,8 @@ static void init_table()
     temp2ASoper.clear();
 }
 
-LLVMIR::L_prog *SSA(LLVMIR::L_prog *prog)
+LLVMIR::L_prog *
+SSA(LLVMIR::L_prog *prog)
 {
     for (auto &fun : prog->funcs)
     {
@@ -69,9 +73,13 @@ LLVMIR::L_prog *SSA(LLVMIR::L_prog *prog)
     return prog;
 }
 
-static bool is_mem_variable(L_stm *stm)
+static bool
+is_mem_variable(L_stm *stm)
 {
-    return stm->type == L_StmKind::T_ALLOCA && stm->u.ALLOCA->dst->kind == OperandKind::TEMP && stm->u.ALLOCA->dst->u.TEMP->type == TempType::INT_PTR && stm->u.ALLOCA->dst->u.TEMP->len == 0;
+    return stm->type == L_StmKind::T_ALLOCA &&
+           stm->u.ALLOCA->dst->kind == OperandKind::TEMP &&
+           stm->u.ALLOCA->dst->u.TEMP->type == TempType::INT_PTR &&
+           stm->u.ALLOCA->dst->u.TEMP->len == 0;
 }
 
 // 保证相同的AS_operand,地址一样 。常量除外
@@ -185,7 +193,8 @@ void mem2reg(LLVMIR::L_func *fun)
             auto list = get_all_AS_operand(stm);
             for (auto AS_op : list)
             {
-                if ((*AS_op)->kind == OperandKind::TEMP && (*AS_op)->u.TEMP->type == TempType::INT_TEMP)
+                if ((*AS_op)->kind == OperandKind::TEMP &&
+                    (*AS_op)->u.TEMP->type == TempType::INT_TEMP)
                 {
                     if (alloca_map.find(*AS_op) != alloca_map.end())
                     {
@@ -199,7 +208,8 @@ void mem2reg(LLVMIR::L_func *fun)
     }
 }
 
-static void compute_reverse_graph(GRAPH::Graph<LLVMIR::L_block *> bg)
+static void
+compute_reverse_graph(GRAPH::Graph<LLVMIR::L_block *> bg)
 {
     for (auto node : bg.mynodes)
         revers_graph[node.second->info] = node.second;
@@ -367,8 +377,10 @@ void tree_Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
     //   Todo
     // for (auto node : bg.mynodes)
     // {
-    //     tree_dominators[node.second->info].pred = bg.mynodes[node.second->info->preds[0]]->info;
-    //     tree_dominators[node.second->info].succs = dominators[node.second->info];
+    //     tree_dominators[node.second->info].pred =
+    //     bg.mynodes[node.second->info->preds[0]]->info;
+    //     tree_dominators[node.second->info].succs =
+    //     dominators[node.second->info];
     // }
 }
 
@@ -382,7 +394,8 @@ void computeDF(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR::L_block 
     {
         auto succNode = bg.mynodes[succ];
         // succNode == r ||
-        if (dominators[succNode->info].find(r->info) == dominators[succNode->info].end())
+        if (dominators[succNode->info].find(r->info) ==
+            dominators[succNode->info].end())
         {
             DF.insert(succNode->info);
         }
@@ -408,19 +421,22 @@ void computeDF(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR::L_block 
             unordered_set<L_block *> strictlyNecessaryNode = dominators[child_up];
             strictlyNecessaryNode.erase(child_up);
             L_block *directlyNecessaryNode = tree_dominators[child].pred;
-            if (strictlyNecessaryNode.find(directlyNecessaryNode) == strictlyNecessaryNode.end())
+            if (strictlyNecessaryNode.find(directlyNecessaryNode) ==
+                strictlyNecessaryNode.end())
                 DF.insert(child_up);
             // tree_dominators[child].succs;
-            // auto intersection = set_intersection(directlyNecessaryNode, strictlyNecessaryNode);
-            // // ) || (intersection.size() == 1 && intersection.find(child) != intersection.end())
-            // if (intersection.empty())
+            // auto intersection = set_intersection(directlyNecessaryNode,
+            // strictlyNecessaryNode);
+            // // ) || (intersection.size() == 1 && intersection.find(child) !=
+            // intersection.end()) if (intersection.empty())
         }
     }
     DF_array[r->info] = DF;
 }
 
 template <typename T>
-unordered_set<T> set_intersection(unordered_set<T> &a, unordered_set<T> &b)
+unordered_set<T>
+set_intersection(unordered_set<T> &a, unordered_set<T> &b)
 {
     unordered_set<T> ret;
     for (auto i : a)
@@ -434,7 +450,8 @@ unordered_set<T> set_intersection(unordered_set<T> &a, unordered_set<T> &b)
 }
 
 template <typename T>
-unordered_set<T> set_intersection(T &a, unordered_set<T> &b)
+unordered_set<T>
+set_intersection(T &a, unordered_set<T> &b)
 {
     unordered_set<T> ret;
     if (b.find(a) != b.end())
@@ -444,7 +461,8 @@ unordered_set<T> set_intersection(T &a, unordered_set<T> &b)
     return ret;
 }
 
-static list<AS_operand **> get_def_int_operand(LLVMIR::L_stm *stm)
+static list<AS_operand **>
+get_def_int_operand(LLVMIR::L_stm *stm)
 {
     list<AS_operand **> ret1 = get_def_operand(stm), ret2;
     for (auto AS_op : ret1)
@@ -458,7 +476,8 @@ static list<AS_operand **> get_def_int_operand(LLVMIR::L_stm *stm)
     return ret2;
 }
 
-static list<AS_operand **> get_use_int_operand(LLVMIR::L_stm *stm)
+static list<AS_operand **>
+get_use_int_operand(LLVMIR::L_stm *stm)
 {
     list<AS_operand **> ret1 = get_use_operand(stm), ret2;
     for (auto AS_op : ret1)
@@ -474,13 +493,15 @@ static list<AS_operand **> get_use_int_operand(LLVMIR::L_stm *stm)
     return ret2;
 }
 
-unordered_map<AS_operand *, unordered_set<GRAPH::Node<LLVMIR::L_block *> *>> def_sites;
+unordered_map<AS_operand *, unordered_set<GRAPH::Node<LLVMIR::L_block *> *>>
+    def_sites;
 
 // 只对标量做
 void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
 {
     //   Todo
-    unordered_map<GRAPH::Node<LLVMIR::L_block *> *, unordered_set<AS_operand *>> A_orig;
+    unordered_map<GRAPH::Node<LLVMIR::L_block *> *, unordered_set<AS_operand *>>
+        A_orig;
     // calculate def_sites and A_orig
     for (auto &block : fun->blocks)
     {
@@ -547,7 +568,10 @@ void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
 
 // unordered_map<AS_operand *, int> AScount;
 // unordered_map<Temp_temp *, stack<Temp_temp *>> &Stack
-static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR::L_block *> *n, unordered_map<Temp_temp *, stack<Temp_temp *>> &Stack)
+static void
+Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg,
+            GRAPH::Node<LLVMIR::L_block *> *n,
+            unordered_map<Temp_temp *, stack<Temp_temp *>> &Stack)
 {
     unordered_map<L_stm *, list<AS_operand **>> def_operand_map;
     // vector<Temp_temp *> push_temp;
@@ -595,7 +619,8 @@ static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR:
             if (stm->type == L_StmKind::T_PHI)
             {
                 auto phi = stm->u.PHI->phis[order];
-                stm->u.PHI->phis[order] = make_pair(AS_Operand_Temp(Stack[phi.first->u.TEMP].top()), phi.second);
+                stm->u.PHI->phis[order] = make_pair(
+                    AS_Operand_Temp(Stack[phi.first->u.TEMP].top()), phi.second);
             }
             else if (stm->type == L_StmKind::T_LABEL)
                 continue;
@@ -615,8 +640,8 @@ static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR:
         //             {
         //                 auto as_temp = Stack[phi.first->u.TEMP].top();
         //                 // phi.first->u.TEMP = as_temp;
-        //                 stm->u.PHI->phis[i] = make_pair(AS_Operand_Temp(as_temp), j);
-        //                 break;
+        //                 stm->u.PHI->phis[i] =
+        //                 make_pair(AS_Operand_Temp(as_temp), j); break;
         //             }
         //         }
         //     }
