@@ -45,9 +45,11 @@ LLVMIR::L_prog *SSA(LLVMIR::L_prog *prog)
     for (auto &fun : prog->funcs)
     {
         // cout << fun->name << endl;
+        // continue;
         init_table();
         combine_addr(fun);
         mem2reg(fun);
+        clear_bb(fun);
         auto RA_bg = Create_bg(fun->blocks);
         SingleSourceGraph(RA_bg.mynodes[0], RA_bg, fun);
         // Show_graph(stdout,RA_bg);
@@ -61,7 +63,6 @@ LLVMIR::L_prog *SSA(LLVMIR::L_prog *prog)
         computeDF(RA_bg, RA_bg.mynodes[0]);
         // printf_DF();
         Place_phi_fu(RA_bg, fun);
-        // continue;
         Rename(RA_bg);
         combine_addr(fun);
     }
@@ -228,15 +229,6 @@ void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
         flag = false;
         for (auto node : ord)
         {
-            // if (node->info->label->name == "bb27")
-            // {
-            //     for (auto i : *node->pred())
-            //     {
-            //         cout << bg.mynodes[i]->info->label->name << " ";
-            //         cout << dom[bg.mynodes[i]->mykey] << endl;
-            //     }
-            //     // cout << dom[node->mykey] << endl;
-            // }
             bitset<bitN> temp;
             if (node->pred()->size())
             {
@@ -276,7 +268,6 @@ void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
     for (auto i_node : bg.mynodes)
     {
         int i = i_node.first;
-        // cout << dom[i] << endl;
         // for (int j = 0; j <= size; j++)
         for (auto j_node : bg.mynodes)
         {
@@ -294,15 +285,6 @@ void Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
             }
         }
     }
-    // for (auto dom : dominators)
-    // {
-    //     cout << dom.first->label->name << endl;
-    //     for (auto dom2 : dom.second)
-    //     {
-    //         cout << dom2->label->name << " ";
-    //     }
-    //     cout << endl;
-    // }
     //   Todo
 }
 
@@ -363,7 +345,7 @@ void tree_Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
         for (auto v : dominators_int[u])
         {
             std::bitset<bitN> tmp = (dom[v] & dom[u]) ^ dom[u];
-            if (tmp.count() == 1 and tmp[u])
+            if (tmp.count() == 1 && dom[u][v])
             {
                 idom[u] = v;
                 break;
@@ -387,21 +369,6 @@ void tree_Dominators(GRAPH::Graph<LLVMIR::L_block *> &bg)
     // {
     //     tree_dominators[node.second->info].pred = bg.mynodes[node.second->info->preds[0]]->info;
     //     tree_dominators[node.second->info].succs = dominators[node.second->info];
-    // }
-
-    // for (auto i : tree_dominators)
-    // {
-    //     cout << i.first->label->name << " ";
-    //     cout << "pred:";
-    //     if (i.second.pred)
-    //         cout << i.second.pred->label->name << " ";
-    //     cout << endl
-    //          << "succs:";
-    //     for (auto j : i.second.succs)
-    //     {
-    //         cout << j->label->name << " ";
-    //     }
-    //     cout << endl;
     // }
 }
 
@@ -444,20 +411,6 @@ void computeDF(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR::L_block 
             if (strictlyNecessaryNode.find(directlyNecessaryNode) == strictlyNecessaryNode.end())
                 DF.insert(child_up);
             // tree_dominators[child].succs;
-            // if (r->info->label->name == "bb27")
-            // {
-            //     cout << "bb27" << endl;
-            //     cout << "strictlyNecessaryNode: ";
-            //     for (auto i : strictlyNecessaryNode)
-            //     {
-            //         cout << i->label->name << " ";
-            //     }
-            //     cout << "directlyNecessaryNode: ";
-            //     for (auto i : directlyNecessaryNode)
-            //     {
-            //         cout << i->label->name << " ";
-            //     }
-            // }
             // auto intersection = set_intersection(directlyNecessaryNode, strictlyNecessaryNode);
             // // ) || (intersection.size() == 1 && intersection.find(child) != intersection.end())
             // if (intersection.empty())
@@ -597,7 +550,8 @@ void Place_phi_fu(GRAPH::Graph<LLVMIR::L_block *> &bg, L_func *fun)
 static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR::L_block *> *n, unordered_map<Temp_temp *, stack<Temp_temp *>> &Stack)
 {
     unordered_map<L_stm *, list<AS_operand **>> def_operand_map;
-    vector<Temp_temp *> push_temp;
+    // vector<Temp_temp *> push_temp;
+    unordered_map<Temp_temp *, int> push_times;
     //   Todo
     for (auto &stm : n->info->instrs)
     {
@@ -606,8 +560,7 @@ static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR:
             auto use_operand = get_use_int_operand(stm);
             for (auto use_x : use_operand)
             {
-                // if (!ASstack[(*use_x)->u.TEMP].size())
-                //     ASstack[(*use_x)->u.TEMP].push((*use_x)->u.TEMP);
+                // assert(Stack[(*use_x)->u.TEMP].size());
                 if (Stack[(*use_x)->u.TEMP].size())
                 {
                     auto top = Stack[(*use_x)->u.TEMP].top();
@@ -619,14 +572,11 @@ static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR:
         auto def_operand = get_def_int_operand(stm);
         for (auto def_x : def_operand)
         {
+            push_times[(*def_x)->u.TEMP]++;
+            // push_temp.push_back((*def_x)->u.TEMP);
             // AScount[*def_x]++;
             auto i = Temp_newtemp_int();
-            // if (i->num == 279)
-            //     assert(0);
-            push_temp.push_back((*def_x)->u.TEMP);
             Stack[(*def_x)->u.TEMP].push(i);
-            if (i->num == 141)
-                cout << (*def_x)->u.TEMP->num << "!" << endl;
             *def_x = AS_Operand_Temp(i);
         }
     }
@@ -647,6 +597,10 @@ static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR:
                 auto phi = stm->u.PHI->phis[order];
                 stm->u.PHI->phis[order] = make_pair(AS_Operand_Temp(Stack[phi.first->u.TEMP].top()), phi.second);
             }
+            else if (stm->type == L_StmKind::T_LABEL)
+                continue;
+            else
+                break;
         }
         // for (auto &stm : bg.mynodes[succ]->info->instrs)
         // {
@@ -659,7 +613,7 @@ static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR:
         //             auto j = phi.second;
         //             if (j->name == n->info->label->name)
         //             {
-        //                 auto as_temp = ASstack[phi.first->u.TEMP].top();
+        //                 auto as_temp = Stack[phi.first->u.TEMP].top();
         //                 // phi.first->u.TEMP = as_temp;
         //                 stm->u.PHI->phis[i] = make_pair(AS_Operand_Temp(as_temp), j);
         //                 break;
@@ -672,9 +626,16 @@ static void Rename_temp(GRAPH::Graph<LLVMIR::L_block *> &bg, GRAPH::Node<LLVMIR:
     for (auto son : tree_dominators[n->info].succs)
         Rename_temp(bg, revers_graph[son], Stack);
 
-    for (auto m : push_temp)
+    // for (auto m : push_temp)
+    // {
+    //     Stack[m].pop();
+    // }
+    for (auto m : push_times)
     {
-        Stack[m].pop();
+        for (int i = 0; i < m.second; i++)
+        {
+            Stack[m.first].pop();
+        }
     }
 }
 
@@ -682,13 +643,18 @@ void Rename(GRAPH::Graph<LLVMIR::L_block *> &bg)
 {
     unordered_map<Temp_temp *, stack<Temp_temp *>> ASstack;
     //   Todo
+    // for (auto arg : fun->args)
+    // {
+    //     assert(arg);
+    //     ASstack[arg].push(arg);
+    // }
     for (auto def_site : def_sites)
     {
-        if (def_site.first->kind == OperandKind::TEMP)
+        if (def_site.first->kind != OperandKind::TEMP)
             continue;
         auto temp = def_site.first->u.TEMP;
         assert(temp);
-        ASstack[temp] = stack<Temp_temp *>();
+        // ASstack[temp] = stack<Temp_temp *>();
         // AScount[def_site.first] = 0;
         ASstack[temp].push(temp);
     }
