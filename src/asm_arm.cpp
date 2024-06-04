@@ -171,6 +171,8 @@ AS_stm *ASM::AS_Movk(AS_reg *src, AS_reg *dst)
     p->u.MOVK = new AS_movk(src, dst);
     return p;
 }
+
+// dst = src
 AS_stm *ASM::AS_Mov(AS_reg *src, AS_reg *dst)
 {
     auto p = new AS_stm();
