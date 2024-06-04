@@ -168,7 +168,7 @@ void setControlFlowDiagram(std::list<InstructionNode *> &nodes, unordered_map<st
         }
         switch (currentNode->raw->type)
         {
-        case AS_stmkind::RET:
+        case AS_stmkind::RETT:
 
             break;
         case AS_stmkind::B:
