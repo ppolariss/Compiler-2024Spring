@@ -174,7 +174,10 @@ void free_frame(list<AS_stm *> &as_list)
 void llvm2asmBinop(list<AS_stm *> &as_list, L_stm *binop_stm)
 {
     // as_list.push_back(AS_Ldr)
+    if (fpOffset.find(binop_stm->u.BINOP->dst->u.TEMP->num) == fpOffset.end())
+        assert(0);
     struct AS_reg *dst = new AS_reg(AS_type::Xn, fpOffset[binop_stm->u.BINOP->dst->u.TEMP->num]);
+
     AS_reg *left, *right;
     if (binop_stm->u.BINOP->left->kind == OperandKind::ICONST)
         left = new AS_reg(AS_type::IMM, binop_stm->u.BINOP->left->u.ICONST);
@@ -214,35 +217,65 @@ void llvm2asmBinop(list<AS_stm *> &as_list, L_stm *binop_stm)
 void llvm2asmLoad(list<AS_stm *> &as_list, L_stm *load_stm)
 {
     assert(load_stm->u.LOAD->dst->kind == OperandKind::TEMP);
-    AS_reg *ptr;
     AS_reg *dst = new AS_reg(AS_type::Xn, fpOffset[load_stm->u.LOAD->dst->u.TEMP->num]);
     if (load_stm->u.LOAD->ptr->kind == OperandKind::NAME)
-        // ptr = new AS_reg(AS_type::ADR, new AS_address(new AS_label(load_stm->u.LOAD->ptr->u.NAME->name)));
-        assert(0);
+    {
+        // ptr = new AS_reg(AS_type::ADR, 0);
+        as_list.push_back(AS_Adr(new AS_label(load_stm->u.LOAD->ptr->u.NAME->name->name), dst));
+        return;
+    }
     else if (load_stm->u.LOAD->ptr->kind == OperandKind::TEMP)
-        ptr = new AS_reg(AS_type::Xn, fpOffset[load_stm->u.LOAD->ptr->u.TEMP->num]);
+    {
+        if (fpOffset.find(load_stm->u.LOAD->ptr->u.TEMP->num) == fpOffset.end())
+            assert(0);
+        AS_reg *ptr = new AS_reg(AS_type::Xn, fpOffset[load_stm->u.LOAD->ptr->u.TEMP->num]);
+        as_list.push_back(AS_Ldr(dst, ptr));
+    }
     else
         assert(0);
-    as_list.push_back(AS_Ldr(dst, ptr));
 }
 
 void llvm2asmStore(list<AS_stm *> &as_list, L_stm *store_stm)
 {
-    assert(store_stm->u.STORE->src->kind == OperandKind::TEMP);
-    AS_reg *ptr;
-    AS_reg *src = new AS_reg(AS_type::Xn, fpOffset[store_stm->u.STORE->src->u.TEMP->num]);
-    if (store_stm->u.STORE->ptr->kind == OperandKind::TEMP)
-        ptr = new AS_reg(AS_type::Xn, fpOffset[store_stm->u.STORE->ptr->u.TEMP->num]);
-    else if (store_stm->u.STORE->ptr->kind == OperandKind::NAME)
+    AS_reg *src = nullptr;
+    switch (store_stm->u.STORE->src->kind)
+    {
+    case OperandKind::TEMP:
+        src = new AS_reg(AS_type::Xn, fpOffset[store_stm->u.STORE->src->u.TEMP->num]);
+        break;
+    case OperandKind::NAME:
         assert(0);
+        // src = new AS_reg(AS_type::Xn, fpOffset[store_stm->u.STORE->src->u.TEMP->num]);
+        // as_list.push_back(AS_Adr(new AS_label(store_stm->u.STORE->src->u.NAME->name->name), src));
+        break;
+    case OperandKind::ICONST:
+        src = new AS_reg(AS_type::IMM, store_stm->u.STORE->src->u.ICONST);
+        break;
+    default:
+        assert(0);
+        break;
+    }
+    assert(src);
+    if (store_stm->u.STORE->ptr->kind == OperandKind::TEMP)
+    {
+        AS_reg *ptr = new AS_reg(AS_type::Xn, fpOffset[store_stm->u.STORE->ptr->u.TEMP->num]);
+        as_list.push_back(AS_Str(src, ptr));
+    }
+    else if (store_stm->u.STORE->ptr->kind == OperandKind::NAME)
+    {
+        // assert(0);
+        // ptr = new AS_reg(AS_type::ADR, 0);
+        as_list.push_back(AS_Adr(new AS_label(store_stm->u.STORE->ptr->u.NAME->name->name), src));
+    }
     else
         assert(0);
-    as_list.push_back(AS_Str(src, ptr));
 }
 
 void llvm2asmCmp(list<AS_stm *> &as_list, L_stm *cmp_stm)
 {
     assert(cmp_stm->u.CMP->left->kind == OperandKind::TEMP);
+    if (fpOffset.find(cmp_stm->u.CMP->left->u.TEMP->num) == fpOffset.end())
+        assert(0);
     AS_reg *left = new AS_reg(AS_type::Xn, fpOffset[cmp_stm->u.CMP->left->u.TEMP->num]);
     AS_reg *right;
     if (cmp_stm->u.CMP->right->kind == OperandKind::ICONST)
@@ -285,6 +318,7 @@ void llvm2asmCmp(list<AS_stm *> &as_list, L_stm *cmp_stm)
 void llvm2asmMov(list<AS_stm *> &as_list, L_stm *mov_stm)
 {
     struct AS_reg *src;
+    assert(mov_stm->u.MOVE->dst->kind == OperandKind::TEMP);
     struct AS_reg *dst = new AS_reg(AS_type::Xn, fpOffset[mov_stm->u.MOVE->dst->u.TEMP->num]);
     if (mov_stm->u.MOVE->src->kind == OperandKind::ICONST)
         src = new AS_reg(AS_type::IMM, mov_stm->u.MOVE->src->u.ICONST);
@@ -306,7 +340,25 @@ void llvm2asmRet(list<AS_stm *> &as_list, L_stm *ret_stm)
 {
     // load_register(as_list);
     // move_result(as_list, ret_stm->u.RETURN->res->u.TEMP->num, XXnret);
-    AS_reg *res = new AS_reg(AS_type::Xn, fpOffset[ret_stm->u.RETURN->ret->u.TEMP->num]);
+    AS_reg *res;
+    if (!ret_stm->u.RETURN->ret)
+    {
+        as_list.push_back(AS_Ret());
+        return;
+    }
+    if (ret_stm->u.RETURN->ret->kind == OperandKind::TEMP)
+        res = new AS_reg(AS_type::Xn, fpOffset[ret_stm->u.RETURN->ret->u.TEMP->num]);
+    else if (ret_stm->u.RETURN->ret->kind == OperandKind::ICONST)
+        res = new AS_reg(AS_type::IMM, ret_stm->u.RETURN->ret->u.ICONST);
+    else if (ret_stm->u.RETURN->ret->kind == OperandKind::NAME)
+    {
+        // res = new AS_reg(AS_type::Xn, 0);
+        as_list.push_back(AS_Adr(new AS_label(ret_stm->u.RETURN->ret->u.NAME->name->name), new AS_reg(AS_type::Xn, XXnret)));
+        as_list.push_back(AS_Ret());
+        return;
+    }
+    else
+        assert(0);
     as_list.push_back(AS_Mov(res, new AS_reg(AS_type::Xn, XXnret)));
     as_list.push_back(AS_Ret());
     // free_frame(as_list);
