@@ -376,6 +376,74 @@ void llvm2asmRet(list<AS_stm *> &as_list, L_stm *ret_stm)
 
 void llvm2asmGep(list<AS_stm *> &as_list, L_stm *gep_stm)
 {
+    // gep_stm->u.GEP->new_ptr
+
+    // base_ptr
+    AS_reg *base_ptr = nullptr;
+    switch (gep_stm->u.GEP->base_ptr->kind)
+    {
+    case OperandKind::TEMP:
+    {
+        base_ptr = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
+        // as_list.push_back(AS_Ldr(new_reg, new AS_reg(AS_type::ADR, new AS_address(new AS_reg(AS_type::Xn, gep_stm->u.GEP->base_ptr->u.TEMP->num), 0))));
+        as_list.push_back(AS_Ldr(base_ptr, new AS_reg(AS_type::ADR, fpOffset[gep_stm->u.GEP->base_ptr->u.TEMP->num])));
+        // Attention it !
+        // gep_stm->u.GEP->base_ptr->u.TEMP;
+    }
+    break;
+    case OperandKind::NAME:
+    {
+        base_ptr = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
+        // ptr = new AS_reg(AS_type::ADR, 0);
+        as_list.push_back(AS_Adr(new AS_label(gep_stm->u.GEP->base_ptr->u.NAME->name->name), base_ptr));
+        return;
+    }
+    break;
+    default:
+        assert(0);
+        break;
+    }
+
+    assert(base_ptr);
+
+    // idx
+    AS_reg *idx = nullptr;
+    switch (gep_stm->u.GEP->index->kind)
+    {
+    case OperandKind::TEMP:
+    {
+        idx = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
+        as_list.push_back(AS_Ldr(idx, new AS_reg(AS_type::Xn, gep_stm->u.GEP->index->u.TEMP->num)));
+    }
+    break;
+    case OperandKind::NAME:
+    {
+        idx = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
+        as_list.push_back(AS_Adr(new AS_label(gep_stm->u.GEP->index->u.NAME->name->name), idx));
+    }
+    break;
+    case OperandKind::ICONST:
+    {
+        // idx = new AS_reg(AS_type::IMM, gep_stm->u.GEP->index->u.ICONST);
+        idx = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
+        as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, gep_stm->u.GEP->index->u.ICONST), idx));
+    }
+    break;
+    default:
+        assert(0);
+        break;
+    }
+    assert(idx);
+
+    // calculate
+    assert(gep_stm->u.GEP->new_ptr->kind == OperandKind::TEMP);
+    assert(gep_stm->u.GEP->new_ptr->u.TEMP->type == TempType::INT_PTR || gep_stm->u.GEP->new_ptr->u.TEMP->type == TempType::STRUCT_PTR);
+    if (gep_stm->u.GEP->new_ptr->u.TEMP->type == TempType::STRUCT_PTR)
+        as_list.push_back(AS_Binop(AS_binopkind::MUL_, idx, new AS_reg(AS_type::IMM, structLayout[gep_stm->u.GEP->new_ptr->u.TEMP->structname]->size), idx));
+    else
+        as_list.push_back(AS_Binop(AS_binopkind::MUL_, idx, new AS_reg(AS_type::IMM, INT_LENGTH), idx));
+    as_list.push_back(AS_Binop(AS_binopkind::ADD_, base_ptr, base_ptr, idx));
+    as_list.push_back(AS_Ldr(new AS_reg(AS_type::Xn, gep_stm->u.GEP->new_ptr->u.TEMP->num), new AS_reg(AS_type::ADR, new AS_address(base_ptr, 0))));
 }
 
 void llvm2asmStm(list<AS_stm *> &as_list, L_stm &stm, L_func &func)
