@@ -264,6 +264,8 @@ string ASM::printAS_reg(AS_reg *reg, bool integer)
     string res = "";
     if (reg->type == AS_type::Xn)
     {
+        if (reg->u.offset < 0 || reg->u.offset > 10000)
+            assert(0);
         res += "x" + to_string(reg->u.offset);
     }
     else if (reg->type == AS_type::IMM)

@@ -80,6 +80,10 @@ void getUseReg(AS_reg *reg, vector<AS_reg *> &uses)
     }
     case AS_type::ADR:
     {
+        // assert(reg);
+        // assert(reg->u.add);
+        // assert(reg->u.add->base);
+        // assert(reg->u.add->base->type);
         if (reg->u.add->base->type == AS_type::Xn)
         {
             uses.push_back(reg->u.add->base);
@@ -300,9 +304,8 @@ void init(std::list<InstructionNode *> &nodes, unordered_map<int, Node<RegInfo> 
 void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm *> &as_list)
 {
     Graph<RegInfo> interferenceGraph;
-    unordered_map<int, Node<RegInfo> *> regNodes;//虚拟器寄存器根据编号到干扰图上的映射
+    unordered_map<int, Node<RegInfo> *> regNodes; // 虚拟器寄存器根据编号到干扰图上的映射
     init(nodes, regNodes, interferenceGraph, as_list);
 
-    //寄存器分配
-    
+    // 寄存器分配
 }
