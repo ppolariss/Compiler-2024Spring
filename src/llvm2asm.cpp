@@ -257,8 +257,13 @@ void llvm2asmStore(list<AS_stm *> &as_list, L_stm *store_stm)
         // as_list.push_back(AS_Adr(new AS_label(store_stm->u.STORE->src->u.NAME->name->name), src));
         break;
     case OperandKind::ICONST:
-        src = new AS_reg(AS_type::IMM, store_stm->u.STORE->src->u.ICONST);
-        break;
+    {
+        // src = new AS_reg(AS_type::IMM, store_stm->u.STORE->src->u.ICONST);
+        // TODO
+        src = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
+        as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, store_stm->u.STORE->src->u.ICONST), src));
+    }
+    break;
     default:
         assert(0);
         break;
@@ -597,7 +602,39 @@ void getCalls(AS_reg *&op_reg, AS_operand *as_operand, list<AS_stm *> &as_list)
     {
     case OperandKind::TEMP:
     {
-        op_reg = new AS_reg(AS_type::Xn, as_operand->u.TEMP->num);
+        switch (as_operand->u.TEMP->type)
+        {
+        case TempType::INT_TEMP:
+        {
+            // assert(0);
+            op_reg = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
+            as_list.push_back(AS_Mov(new AS_reg(AS_type::Xn, as_operand->u.TEMP->num), op_reg));
+            // op_reg = new AS_reg(AS_type::Xn, as_operand->u.TEMP->num);
+            break;
+        }
+        case TempType::INT_PTR:
+        {
+            op_reg = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
+            // AS_reg *tmp_reg = new AS_reg(AS_type::Xn, as_operand->u.TEMP->num);
+            as_list.push_back(AS_Ldr(op_reg, new AS_reg(AS_type::ADR, fpOffset[as_operand->u.TEMP->num])));
+            break;
+        }
+        case TempType::STRUCT_PTR:
+        {
+            op_reg = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
+            // AS_reg *tmp_reg = new AS_reg(AS_type::Xn, as_operand->u.TEMP->num);
+            as_list.push_back(AS_Ldr(op_reg, new AS_reg(AS_type::ADR, fpOffset[as_operand->u.TEMP->num])));
+            break;
+        }
+        case TempType::STRUCT_TEMP:
+        {
+            assert(0);
+            break;
+        }
+        default:
+            assert(0);
+            break;
+        }
         break;
     }
     case OperandKind::NAME:
@@ -738,6 +775,32 @@ AS_func *llvm2asmFunc(L_func &func)
         }
     }
     // ToDo:处理PHI语句
+    for (auto &x : phi)
+    {
+        L_phi *phi = x->phi->u.PHI;
+        // string label = x->label;
+        // auto it = block_map.find(label);
+        // if (it == block_map.end())
+        //     assert(0);
+        // // assert(it != )
+        // // p->stms.insert(it->second, new AS_label(label));
+        // auto block = it->second;
+        assert(phi->dst->kind == OperandKind::TEMP);
+        int dst_mum = phi->dst->u.TEMP->num;
+        for (auto it = phi->phis.begin(); it != phi->phis.end(); ++it)
+        {
+            AS_operand *operand = (*it).first;
+            assert(operand->kind == OperandKind::TEMP);
+            Temp_label *temp_label = (*it).second;
+            auto insert_it = block_map[temp_label->name];
+            while (insert_it != p->stms.begin() && ((*insert_it)->type == AS_stmkind::B ||
+                                                    (*insert_it)->type == AS_stmkind::BCOND ||
+                                                    (*insert_it)->type == AS_stmkind::RETT))
+                insert_it--;
+
+            p->stms.insert(insert_it, AS_Mov(new AS_reg(AS_type::Xn, operand->u.TEMP->num), new AS_reg(AS_type::Xn, dst_mum)));
+        }
+    }
 
     allocReg(p->stms, func);
     return p;
