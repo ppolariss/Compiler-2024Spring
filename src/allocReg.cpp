@@ -310,6 +310,7 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
 
     // 寄存器分配
     // unordered_set
+    stack<Node<RegInfo> *> spill_stack;
     bool changed = true;
     while (changed)
     {
@@ -318,6 +319,8 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         {
             int id = pair.first;
             Node<RegInfo> *info = pair.second;
+            if (id < 100)
+                continue;
             if (!info)
                 continue;
             if (info->info.bit_map || info->info.is_spill)
@@ -344,6 +347,8 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         {
             int id = pair.first;
             Node<RegInfo> *info = pair.second;
+            if (id < 100)
+                continue;
             if (!info)
                 continue;
             if (info->info.bit_map || info->info.is_spill)
@@ -353,7 +358,8 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
             changed = true;
             // info->info.is_spill = true;
             info->info.bit_map = true;
-            reg_stack.push(info);
+            // reg_stack.push(info);
+            spill_stack.push(info);
             GRAPH::NodeSet *nodeSet = info->succ();
             for (auto it = nodeSet->begin(); it != nodeSet->end(); ++it)
                 if (regNodes[*it])
@@ -378,12 +384,19 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         {
             flag = false;
             for (auto it = nodeSet->begin(); it != nodeSet->end(); ++it)
+            {
+                // cout << *it << " " << colour << " " << regNodes[*it] << " " << endl;
+                // if (regNodes[*it])
+                //     cout << "regNodes[*it]->info.color" << endl;
                 if (regNodes[*it] && regNodes[*it]->info.color == colour)
                 {
+                    cout << *it << " " << colour << endl;
+                    cout << "yes" << endl;
                     colour++;
                     flag = true;
                     break;
                 }
+            }
         }
 
         if (colour >= k)
@@ -414,8 +427,8 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
             if (def->type == AS_type::Xn)
             {
                 Node<RegInfo> *node = regNodes[def->u.offset];
-                if (node)
-                def->u.offset = node->info.color;
+                if (node && def->u.offset >= 100)
+                    def->u.offset = node->info.color;
             }
         }
         for (AS_reg *use : uses)
@@ -423,7 +436,7 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
             if (use->type == AS_type::Xn)
             {
                 Node<RegInfo> *node = regNodes[use->u.offset];
-                if (node)
+                if (node && use->u.offset >= 100)
                     use->u.offset = node->info.color;
             }
         }

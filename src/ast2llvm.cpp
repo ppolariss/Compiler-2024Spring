@@ -556,7 +556,9 @@ Func_local *ast2llvmFunc(aA_fnDef f)
 {
     localVarMap.clear();
     emit_irs.clear();
-    emit_irs.push_back(L_Label(Temp_newlabel_named(*f->fnDecl->id)));
+    // emit_irs.push_back(L_Label(Temp_newlabel_named(*f->fnDecl->id)));
+    // emit_irs.push_back(L_Label(Temp_newlabel_named(*f->fnDecl->id + "_entry")));
+    emit_irs.push_back(L_Label(Temp_newlabel()));
     // emit_irs = list<L_stm *>();
     vector<Temp_temp *> args;
     for (const auto &decl : f->fnDecl->paramDecl->varDecls)
