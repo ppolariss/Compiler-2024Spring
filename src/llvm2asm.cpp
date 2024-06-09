@@ -171,7 +171,6 @@ void free_frame(list<AS_stm *> &as_list)
 {
     as_list.emplace_back(AS_Mov(new AS_reg(AS_type::Xn, XnFP), sp));
     as_list.emplace_back(AS_Ldp(new AS_reg(AS_type::Xn, XnFP), new AS_reg(AS_type::Xn, XXnl), sp, 2 * INT_LENGTH));
-    as_list.emplace_back(AS_Ret());
 }
 void llvm2asmBinop(list<AS_stm *> &as_list, L_stm *binop_stm)
 {
@@ -367,28 +366,35 @@ void llvm2asmRet(list<AS_stm *> &as_list, L_stm *ret_stm)
 {
     // load_register(as_list);
     // move_result(as_list, ret_stm->u.RETURN->res->u.TEMP->num, XXnret);
-    AS_reg *res;
-    if (!ret_stm->u.RETURN->ret)
+
+    if (ret_stm->u.RETURN->ret)
     {
-        as_list.push_back(AS_Ret());
-        return;
+        AS_reg *res = nullptr;
+        switch (ret_stm->u.RETURN->ret->kind)
+        {
+        case OperandKind::TEMP:
+            res = new AS_reg(AS_type::Xn, ret_stm->u.RETURN->ret->u.TEMP->num);
+            break;
+        case OperandKind::ICONST:
+            res = new AS_reg(AS_type::IMM, ret_stm->u.RETURN->ret->u.ICONST);
+            break;
+        case OperandKind::NAME:
+        {
+            // res = new AS_reg(AS_type::Xn, 0);
+            as_list.push_back(AS_Adr(new AS_label(ret_stm->u.RETURN->ret->u.NAME->name->name), new AS_reg(AS_type::Xn, XXnret)));
+            as_list.push_back(AS_Ret());
+        }
+        break;
+        default:
+            assert(0);
+            break;
+        }
+        assert(res);
+        as_list.push_back(AS_Mov(res, new AS_reg(AS_type::Xn, XXnret)));
     }
-    if (ret_stm->u.RETURN->ret->kind == OperandKind::TEMP)
-        res = new AS_reg(AS_type::Xn, ret_stm->u.RETURN->ret->u.TEMP->num);
-    else if (ret_stm->u.RETURN->ret->kind == OperandKind::ICONST)
-        res = new AS_reg(AS_type::IMM, ret_stm->u.RETURN->ret->u.ICONST);
-    else if (ret_stm->u.RETURN->ret->kind == OperandKind::NAME)
-    {
-        // res = new AS_reg(AS_type::Xn, 0);
-        as_list.push_back(AS_Adr(new AS_label(ret_stm->u.RETURN->ret->u.NAME->name->name), new AS_reg(AS_type::Xn, XXnret)));
-        as_list.push_back(AS_Ret());
-        return;
-    }
-    else
-        assert(0);
-    as_list.push_back(AS_Mov(res, new AS_reg(AS_type::Xn, XXnret)));
+
+    free_frame(as_list);
     as_list.push_back(AS_Ret());
-    // free_frame(as_list);
 }
 
 void llvm2asmGep(list<AS_stm *> &as_list, L_stm *gep_stm)

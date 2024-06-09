@@ -315,12 +315,13 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
     while (changed)
     {
         changed = false;
-        for (auto pair : regNodes)
+        for (auto it = interferenceGraph.nodes()->begin(); it != interferenceGraph.nodes()->end(); ++it)
         {
+            auto pair = *it;
             int id = pair.first;
             Node<RegInfo> *info = pair.second;
-            if (id < 100)
-                continue;
+            // if (id < 100)
+            //     continue;
             if (!info)
                 continue;
             if (info->info.bit_map || info->info.is_spill)
@@ -333,8 +334,9 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
             info->info.bit_map = true;
             GRAPH::NodeSet *nodeSet = info->succ();
             for (auto it = nodeSet->begin(); it != nodeSet->end(); ++it)
-                if (regNodes[*it])
-                    regNodes[*it]->info.degree--;
+                interferenceGraph.mynodes[*it]->info.degree--;
+            // if (regNodes[*it])
+            //     regNodes[*it]->info.degree--;
 
             // nodeSet = info->pred();
 
@@ -343,12 +345,14 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         if (changed)
             continue;
 
-        for (auto pair : regNodes)
+        // for (auto pair : regNodes)
+        for (auto it = interferenceGraph.nodes()->begin(); it != interferenceGraph.nodes()->end(); ++it)
         {
+            auto pair = *it;
             int id = pair.first;
             Node<RegInfo> *info = pair.second;
-            if (id < 100)
-                continue;
+            // if (id < 100)
+            //     continue;
             if (!info)
                 continue;
             if (info->info.bit_map || info->info.is_spill)
@@ -362,8 +366,9 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
             spill_stack.push(info);
             GRAPH::NodeSet *nodeSet = info->succ();
             for (auto it = nodeSet->begin(); it != nodeSet->end(); ++it)
-                if (regNodes[*it])
-                    regNodes[*it]->info.degree--;
+                interferenceGraph.mynodes[*it]->info.degree--;
+            // if (regNodes[*it])
+            //     regNodes[*it]->info.degree--;
             break;
             // nodeSet = info->pred();
 
@@ -388,14 +393,20 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
                 // cout << *it << " " << colour << " " << regNodes[*it] << " " << endl;
                 // if (regNodes[*it])
                 //     cout << "regNodes[*it]->info.color" << endl;
-                if (regNodes[*it] && regNodes[*it]->info.color == colour)
+                if (interferenceGraph.mynodes[*it] && interferenceGraph.mynodes[*it]->info.color == colour)
                 {
-                    cout << *it << " " << colour << endl;
-                    cout << "yes" << endl;
                     colour++;
                     flag = true;
                     break;
                 }
+                // if (regNodes[*it] && regNodes[*it]->info.color == colour)
+                // {
+                //     cout << *it << " " << colour << endl;
+                //     cout << "yes" << endl;
+                //     colour++;
+                //     flag = true;
+                //     break;
+                // }
             }
         }
 
@@ -426,7 +437,8 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         {
             if (def->type == AS_type::Xn)
             {
-                Node<RegInfo> *node = regNodes[def->u.offset];
+                Node<RegInfo> *node = interferenceGraph.mynodes[def->u.offset];
+                // Node<RegInfo> *node = regNodes[def->u.offset];
                 if (node && def->u.offset >= 100)
                     def->u.offset = node->info.color;
             }
@@ -435,7 +447,8 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         {
             if (use->type == AS_type::Xn)
             {
-                Node<RegInfo> *node = regNodes[use->u.offset];
+                Node<RegInfo> *node = interferenceGraph.mynodes[use->u.offset];
+                // Node<RegInfo> *node = regNodes[use->u.offset];
                 if (node && use->u.offset >= 100)
                     use->u.offset = node->info.color;
             }

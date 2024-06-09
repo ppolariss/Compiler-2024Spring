@@ -1,0 +1,6 @@
+atest00: 
+0
+fail
+Expect:
+1Got:
+255

@@ -1,0 +1,15 @@
+//name全局变量作为左值?
+struct MyStruct{
+    a:int,
+    b:int 
+}
+let x[10]:MyStruct;
+let m:int=1;
+let n:int=2;
+fn main()->int{
+    x[1].a = 1;
+    x[n].b = m;
+    x[m].b = x[1].a;
+    x[m].a = x[n].b;
+    ret x[n].b == x[m].a;
+}

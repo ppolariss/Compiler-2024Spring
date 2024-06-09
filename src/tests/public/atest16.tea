@@ -1,0 +1,23 @@
+// struct arrary 
+struct next {
+    k8s: int
+}
+
+struct arrary {
+    data: int,
+    next: next // can not contain self
+}
+
+fn add(a:arrary, b:arrary)->int{
+    let c:arrary;
+    c.data = a.data + b.data;
+    ret c.data + 1;
+}
+
+fn main()->int{
+    let a:arrary;
+    let b:arrary;
+    a.data = 1;
+    b.data = 2;
+    ret add(a, b);
+}
