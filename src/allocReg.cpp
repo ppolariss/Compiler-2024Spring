@@ -10,7 +10,7 @@ using namespace GRAPH;
 #include <iostream>
 #include "printASM.h"
 stack<Node<RegInfo> *> reg_stack;
-const int k = 30;
+const int k = 100;
 void getAllRegs(AS_stm *stm, vector<AS_reg *> &defs, vector<AS_reg *> &uses)
 {
     switch (stm->type)
@@ -81,10 +81,10 @@ void getUseReg(AS_reg *reg, vector<AS_reg *> &uses)
     }
     case AS_type::ADR:
     {
-        // assert(reg);
-        // assert(reg->u.add);
-        // assert(reg->u.add->base);
-        // assert(reg->u.add->base->type);
+        assert(reg);
+        assert(reg->u.add);
+        assert(reg->u.add->base);
+        assert(reg->u.add->base->type);
         if (reg->u.add->base->type == AS_type::Xn)
         {
             uses.push_back(reg->u.add->base);
@@ -310,9 +310,10 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
 
     // 寄存器分配
     // unordered_set
-    while (true)
+    bool changed = true;
+    while (changed)
     {
-        bool changed = false;
+        changed = false;
         for (auto pair : regNodes)
         {
             int id = pair.first;
@@ -347,11 +348,12 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
                 continue;
             if (info->info.bit_map || info->info.is_spill)
                 continue;
-            if (info->info.degree < k)
-                continue;
+            assert(info->info.degree >= k);
 
             changed = true;
-            info->info.is_spill = true;
+            // info->info.is_spill = true;
+            info->info.bit_map = true;
+            reg_stack.push(info);
             GRAPH::NodeSet *nodeSet = info->succ();
             for (auto it = nodeSet->begin(); it != nodeSet->end(); ++it)
                 if (regNodes[*it])
@@ -361,11 +363,69 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
 
             // interferenceGraph.mynodes[id]->info.degree
         }
-
-        if (!changed)
-            break;
     }
 
-    cout << "regNodes.size():" << regNodes.size() << endl;
-    reg_stack = stack<Node<RegInfo> *>();
+    unordered_set<int> spill_reg = unordered_set<int>();
+
+    while (!reg_stack.empty())
+    {
+        Node<RegInfo> *info = reg_stack.top();
+        reg_stack.pop();
+        GRAPH::NodeSet *nodeSet = info->succ();
+        int colour = 0;
+        bool flag = true;
+        while (flag)
+        {
+            flag = false;
+            for (auto it = nodeSet->begin(); it != nodeSet->end(); ++it)
+                if (regNodes[*it] && regNodes[*it]->info.color == colour)
+                {
+                    colour++;
+                    flag = true;
+                    break;
+                }
+        }
+
+        if (colour >= k)
+        {
+            spill_reg.insert(info->info.regNum);
+            info->info.is_spill = true;
+            info->info.color = -1;
+            // info->info.regNum = -1;
+        }
+        else
+        {
+            info->info.color = colour;
+            // info->info.regNum = colour;
+        }
+        // info->info.color = info->color % k;
+
+        //         regNodes[*it]->info.color++;
+    }
+    cout << spill_reg.size() << endl;
+    // cout << "regNodes.size():" << regNodes.size() << endl;
+    for (AS_stm *list : as_list)
+    {
+        vector<AS_reg *> defs;
+        vector<AS_reg *> uses;
+        getAllRegs(list, defs, uses);
+        for (AS_reg *def : defs)
+        {
+            if (def->type == AS_type::Xn)
+            {
+                Node<RegInfo> *node = regNodes[def->u.offset];
+                if (node)
+                def->u.offset = node->info.color;
+            }
+        }
+        for (AS_reg *use : uses)
+        {
+            if (use->type == AS_type::Xn)
+            {
+                Node<RegInfo> *node = regNodes[use->u.offset];
+                if (node)
+                    use->u.offset = node->info.color;
+            }
+        }
+    }
 }
