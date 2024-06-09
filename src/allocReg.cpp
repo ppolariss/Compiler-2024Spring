@@ -10,6 +10,7 @@ using namespace GRAPH;
 #include <iostream>
 #include "printASM.h"
 stack<Node<RegInfo> *> reg_stack;
+const int k = 30;
 void getAllRegs(AS_stm *stm, vector<AS_reg *> &defs, vector<AS_reg *> &uses)
 {
     switch (stm->type)
@@ -308,4 +309,63 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
     init(nodes, regNodes, interferenceGraph, as_list);
 
     // 寄存器分配
+    // unordered_set
+    while (true)
+    {
+        bool changed = false;
+        for (auto pair : regNodes)
+        {
+            int id = pair.first;
+            Node<RegInfo> *info = pair.second;
+            if (!info)
+                continue;
+            if (info->info.bit_map || info->info.is_spill)
+                continue;
+            if (info->info.degree >= k)
+                continue;
+
+            changed = true;
+            reg_stack.push(info);
+            info->info.bit_map = true;
+            GRAPH::NodeSet *nodeSet = info->succ();
+            for (auto it = nodeSet->begin(); it != nodeSet->end(); ++it)
+                if (regNodes[*it])
+                    regNodes[*it]->info.degree--;
+
+            // nodeSet = info->pred();
+
+            // interferenceGraph.mynodes[id]->info.degree
+        }
+        if (changed)
+            continue;
+
+        for (auto pair : regNodes)
+        {
+            int id = pair.first;
+            Node<RegInfo> *info = pair.second;
+            if (!info)
+                continue;
+            if (info->info.bit_map || info->info.is_spill)
+                continue;
+            if (info->info.degree < k)
+                continue;
+
+            changed = true;
+            info->info.is_spill = true;
+            GRAPH::NodeSet *nodeSet = info->succ();
+            for (auto it = nodeSet->begin(); it != nodeSet->end(); ++it)
+                if (regNodes[*it])
+                    regNodes[*it]->info.degree--;
+            break;
+            // nodeSet = info->pred();
+
+            // interferenceGraph.mynodes[id]->info.degree
+        }
+
+        if (!changed)
+            break;
+    }
+
+    cout << "regNodes.size():" << regNodes.size() << endl;
+    reg_stack = stack<Node<RegInfo> *>();
 }
