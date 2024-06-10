@@ -10,8 +10,8 @@ using namespace GRAPH;
 #include <iostream>
 #include "printASM.h"
 stack<Node<RegInfo> *> reg_stack;
-const int k = 8;//8-15
-const int begin_reg = 8;
+const int k = 8; // 8-15
+const int START_REG = 8;
 void getAllRegs(AS_stm *stm, vector<AS_reg *> &defs, vector<AS_reg *> &uses)
 {
     switch (stm->type)
@@ -384,7 +384,7 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         Node<RegInfo> *info = reg_stack.top();
         reg_stack.pop();
         GRAPH::NodeSet *nodeSet = info->succ();
-        int colour = 0;
+        int colour = START_REG;
         bool flag = true;
         while (flag)
         {
@@ -411,7 +411,7 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
             }
         }
 
-        if (colour >= k)
+        if (colour >= START_REG + k)
         {
             spill_reg.insert(info->info.regNum);
             info->info.is_spill = true;

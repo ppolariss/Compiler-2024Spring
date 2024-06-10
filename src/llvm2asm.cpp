@@ -356,31 +356,20 @@ void llvm2asmRet(list<AS_stm *> &as_list, L_stm *ret_stm)
 
 void llvm2asmGep(list<AS_stm *> &as_list, L_stm *gep_stm)
 {
-    // gep_stm->u.GEP->new_ptr
-
     // base_ptr
     AS_reg *base_ptr = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
     switch (gep_stm->u.GEP->base_ptr->kind)
     {
     case OperandKind::TEMP:
     {
-        // as_list.push_back(AS_Ldr(new_reg, new AS_reg(AS_type::ADR, new AS_address(new AS_reg(AS_type::Xn, gep_stm->u.GEP->base_ptr->u.TEMP->num), 0))));
-        // as_list.push_back(AS_Ldr(base_ptr, new AS_reg(AS_type::ADR, fpOffset[gep_stm->u.GEP->base_ptr->u.TEMP->num])));
-        // as_list.push_back(AS_Ldr(base_ptr, new AS_reg(AS_type::ADR, fpOffset[gep_stm->u.GEP->base_ptr->u.TEMP->num])));
         AS_address *addr = fpOffset[gep_stm->u.GEP->base_ptr->u.TEMP->num];
-        // assert(addr);
         if (addr)
             as_list.push_back(AS_Binop(AS_binopkind::ADD_, new AS_reg(AS_type::Xn, XnFP), new AS_reg(AS_type::IMM, addr->imm), base_ptr));
         else
             as_list.push_back(AS_Mov(new AS_reg(AS_type::Xn, gep_stm->u.GEP->base_ptr->u.TEMP->num), base_ptr));
-        // as_list.push_back(AS_Mov(new AS_reg(AS_type::ADR, fpOffset[gep_stm->u.GEP->base_ptr->u.TEMP->num]), base_ptr));
-        // as_list.push_back(AS_Ldr(base_ptr, new AS_reg(AS_type::SP, 0), fpOffset[gep_stm->u.GEP->base_ptr->u.TEMP->num]->imm));
-        // Attention it !
-        // gep_stm->u.GEP->base_ptr->u.TEMP;
     }
     break;
     case OperandKind::NAME:
-        // ptr = new AS_reg(AS_type::ADR, 0);
         as_list.push_back(AS_Adr(new AS_label(gep_stm->u.GEP->base_ptr->u.NAME->name->name), base_ptr));
         break;
     default:
@@ -395,12 +384,8 @@ void llvm2asmGep(list<AS_stm *> &as_list, L_stm *gep_stm)
     switch (gep_stm->u.GEP->index->kind)
     {
     case OperandKind::TEMP:
-    {
-        // as_list.push_back(AS_Ldr(idx, new AS_reg(AS_type::SP, 0), fpOffset[gep_stm->u.GEP->index->u.TEMP->num]->imm));
-        // as_list.push_back(AS_Ldr(idx, new AS_reg(AS_type::ADR, new AS_address(new AS_reg(AS_type::Xn, gep_stm->u.GEP->index->u.TEMP->num), 0))));
         idx = new AS_reg(AS_type::Xn, gep_stm->u.GEP->index->u.TEMP->num);
-    }
-    break;
+        break;
     case OperandKind::NAME:
     {
         idx = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
@@ -409,8 +394,8 @@ void llvm2asmGep(list<AS_stm *> &as_list, L_stm *gep_stm)
     break;
     case OperandKind::ICONST:
     {
-        idx = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
         // idx = new AS_reg(AS_type::IMM, gep_stm->u.GEP->index->u.ICONST);
+        idx = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
         as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, gep_stm->u.GEP->index->u.ICONST), idx));
     }
     break;
@@ -428,9 +413,10 @@ void llvm2asmGep(list<AS_stm *> &as_list, L_stm *gep_stm)
         as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, structLayout[gep_stm->u.GEP->new_ptr->u.TEMP->structname]->size), imm_reg));
     else
         as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, INT_LENGTH), imm_reg));
-    as_list.push_back(AS_Binop(AS_binopkind::MUL_, idx, imm_reg, idx));
-    as_list.push_back(AS_Binop(AS_binopkind::ADD_, base_ptr, idx, base_ptr));
-    as_list.push_back(AS_Mov(base_ptr, new AS_reg(AS_type::Xn, gep_stm->u.GEP->new_ptr->u.TEMP->num)));
+    AS_reg *new_reg = new AS_reg(AS_type::Xn, gep_stm->u.GEP->new_ptr->u.TEMP->num);
+    as_list.push_back(AS_Binop(AS_binopkind::MUL_, idx, imm_reg, new_reg));
+    as_list.push_back(AS_Binop(AS_binopkind::ADD_, base_ptr, new_reg, new_reg));
+    // as_list.push_back(AS_Mov(base_ptr, new AS_reg(AS_type::Xn, gep_stm->u.GEP->new_ptr->u.TEMP->num)));
     // as_list.push_back(AS_Ldr(new AS_reg(AS_type::Xn, gep_stm->u.GEP->new_ptr->u.TEMP->num), new AS_reg(AS_type::ADR, new AS_address(base_ptr, 0))));
 }
 
@@ -577,7 +563,7 @@ void load_register(list<AS_stm *> &as_list)
         if (it != allocateRegs.rend())
         {
             int second = *it;
-            as_list.push_back(AS_Ldp(new AS_reg(AS_type::Xn, first), new AS_reg(AS_type::Xn, second), sp, 2 * INT_LENGTH));
+            as_list.push_back(AS_Ldp(new AS_reg(AS_type::Xn, second), new AS_reg(AS_type::Xn, first), sp, 2 * INT_LENGTH));
         }
         else
         {

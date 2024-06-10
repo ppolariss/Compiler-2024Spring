@@ -1,6 +1,1 @@
-atest00: 
-0
-fail
-Expect:
-1Got:
-255
+make: Nothing to be done for 'run'.

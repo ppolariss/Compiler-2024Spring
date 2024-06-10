@@ -3,7 +3,7 @@
 
 #include <set>
 #include <array>
-const std::set<int> allocateRegs{9, 10, 11, 12, 13, 14, 15};//caller-save
+const std::set<int> allocateRegs{8, 9, 10, 11, 12, 13, 14, 15};//caller-save
 //以下四个寄存器为allocReg时spill专用
 const int XXn1 = 16;
 const int XXn2 = 17;
