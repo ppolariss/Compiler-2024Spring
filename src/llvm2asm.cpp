@@ -247,7 +247,8 @@ void llvm2asmStore(list<AS_stm *> &as_list, L_stm *store_stm)
 
 void llvm2asmCmp(list<AS_stm *> &as_list, L_stm *cmp_stm)
 {
-    AS_reg *left;
+    // ATTENTION: maybe too large
+    AS_reg *left = nullptr, *right = nullptr;
     if (cmp_stm->u.CMP->left->kind == OperandKind::ICONST)
     {
         left = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
@@ -260,13 +261,18 @@ void llvm2asmCmp(list<AS_stm *> &as_list, L_stm *cmp_stm)
     // if (fpOffset.find(cmp_stm->u.CMP->left->u.TEMP->num) == fpOffset.end())
     //     assert(0);
 
-    AS_reg *right;
     if (cmp_stm->u.CMP->right->kind == OperandKind::ICONST)
         right = new AS_reg(AS_type::IMM, cmp_stm->u.CMP->right->u.ICONST);
+    // {
+    //     right = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
+    //     as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, cmp_stm->u.CMP->right->u.ICONST), right));
+    // }
     else if (cmp_stm->u.CMP->right->kind == OperandKind::TEMP)
         right = new AS_reg(AS_type::Xn, cmp_stm->u.CMP->right->u.TEMP->num);
     else
         assert(0);
+
+    assert(left && right);
     as_list.push_back(AS_Cmp(left, right));
 
     AS_reg *dst = new AS_reg(AS_type::Xn, cmp_stm->u.CMP->dst->u.TEMP->num);
