@@ -10,7 +10,8 @@ using namespace GRAPH;
 #include <iostream>
 #include "printASM.h"
 stack<Node<RegInfo> *> reg_stack;
-const int k = 100;
+const int k = 8;//8-15
+const int begin_reg = 8;
 void getAllRegs(AS_stm *stm, vector<AS_reg *> &defs, vector<AS_reg *> &uses)
 {
     switch (stm->type)
@@ -426,7 +427,7 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
 
         //         regNodes[*it]->info.color++;
     }
-    cout << spill_reg.size() << endl;
+    // cout << spill_reg.size() << endl;
     // cout << "regNodes.size():" << regNodes.size() << endl;
     for (AS_stm *list : as_list)
     {
@@ -437,18 +438,22 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         {
             if (def->type == AS_type::Xn)
             {
-                Node<RegInfo> *node = interferenceGraph.mynodes[def->u.offset];
-                // Node<RegInfo> *node = regNodes[def->u.offset];
-                if (node && def->u.offset >= 100)
-                    def->u.offset = node->info.color;
+                if (def->u.offset >= 100)
+                {
+                    // Node<RegInfo> *node = interferenceGraph.mynodes[def->u.offset];
+                    Node<RegInfo> *node = regNodes[def->u.offset];
+                    // if (node && def->u.offset >= 100)
+                    if (node)
+                        def->u.offset = node->info.color;
+                }
             }
         }
         for (AS_reg *use : uses)
         {
             if (use->type == AS_type::Xn)
             {
-                Node<RegInfo> *node = interferenceGraph.mynodes[use->u.offset];
-                // Node<RegInfo> *node = regNodes[use->u.offset];
+                // Node<RegInfo> *node = interferenceGraph.mynodes[use->u.offset];
+                Node<RegInfo> *node = regNodes[use->u.offset];
                 if (node && use->u.offset >= 100)
                     use->u.offset = node->info.color;
             }
