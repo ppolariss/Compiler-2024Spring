@@ -1,1 +1,164 @@
-make: Nothing to be done for 'run'.
+many_globals: 
+Error: Unrecognized character '' at line 2, column 1
+Error: Unrecognized character '' at line 3, column 12
+Error: Unrecognized character '' at line 4, column 12
+Error: Unrecognized character '' at line 5, column 12
+Error: Unrecognized character '' at line 6, column 12
+Error: Unrecognized character '' at line 7, column 12
+Error: Unrecognized character '' at line 8, column 12
+Error: Unrecognized character '' at line 9, column 12
+Error: Unrecognized character '' at line 10, column 12
+Error: Unrecognized character '' at line 11, column 12
+Error: Unrecognized character '' at line 12, column 12
+Error: Unrecognized character '' at line 13, column 13
+Error: Unrecognized character '' at line 14, column 13
+Error: Unrecognized character '' at line 15, column 13
+Error: Unrecognized character '' at line 16, column 13
+Error: Unrecognized character '' at line 17, column 13
+Error: Unrecognized character '' at line 18, column 13
+Error: Unrecognized character '' at line 19, column 13
+Error: Unrecognized character '' at line 20, column 13
+Error: Unrecognized character '' at line 21, column 13
+Error: Unrecognized character '' at line 22, column 13
+Error: Unrecognized character '' at line 23, column 13
+Error: Unrecognized character '' at line 24, column 13
+Error: Unrecognized character '' at line 25, column 13
+Error: Unrecognized character '' at line 26, column 13
+Error: Unrecognized character '' at line 27, column 13
+Error: Unrecognized character '' at line 28, column 13
+Error: Unrecognized character '' at line 29, column 13
+Error: Unrecognized character '' at line 30, column 13
+Error: Unrecognized character '' at line 31, column 13
+Error: Unrecognized character '' at line 32, column 13
+Error: Unrecognized character '' at line 33, column 13
+Error: Unrecognized character '' at line 34, column 13
+Error: Unrecognized character '' at line 35, column 1
+Error: Unrecognized character '' at line 36, column 13
+Error: Unrecognized character '' at line 37, column 13
+Error: Unrecognized character '' at line 38, column 13
+Error: Unrecognized character '' at line 39, column 13
+Error: Unrecognized character '' at line 40, column 13
+Error: Unrecognized character '' at line 41, column 13
+Error: Unrecognized character '' at line 42, column 13
+Error: Unrecognized character '' at line 43, column 13
+Error: Unrecognized character '' at line 44, column 1
+Error: Unrecognized character '' at line 45, column 1
+Error: Unrecognized character '' at line 46, column 46
+Error: Unrecognized character '' at line 47, column 47
+Error: Unrecognized character '' at line 48, column 50
+Error: Unrecognized character '' at line 49, column 2
+Error: Unrecognized character '' at line 50, column 1
+Error: Unrecognized character '' at line 51, column 47
+Error: Unrecognized character '' at line 52, column 40
+Error: Unrecognized character '' at line 53, column 42
+Error: Unrecognized character '' at line 54, column 51
+Error: Unrecognized character '' at line 55, column 51
+Error: Unrecognized character '' at line 56, column 57
+Error: Unrecognized character '' at line 57, column 2
+Error: Unrecognized character '' at line 58, column 1
+Error: Unrecognized character '' at line 59, column 47
+Error: Unrecognized character '' at line 60, column 40
+Error: Unrecognized character '' at line 61, column 42
+Error: Unrecognized character '' at line 62, column 44
+Error: Unrecognized character '' at line 63, column 44
+Error: Unrecognized character '' at line 64, column 44
+Error: Unrecognized character '' at line 65, column 44
+Error: Unrecognized character '' at line 66, column 51
+Error: Unrecognized character '' at line 67, column 51
+Error: Unrecognized character '' at line 68, column 58
+Error: Unrecognized character '' at line 69, column 60
+Error: Unrecognized character '' at line 70, column 59
+Error: Unrecognized character '' at line 71, column 2
+Error: Unrecognized character '' at line 72, column 1
+Error: Unrecognized character '' at line 73, column 17
+Error: Unrecognized character '' at line 74, column 29
+Error: Unrecognized character '' at line 75, column 12
+Error: Unrecognized character '' at line 76, column 12
+Error: Unrecognized character '' at line 77, column 12
+Error: Unrecognized character '' at line 78, column 12
+Error: Unrecognized character '' at line 79, column 12
+Error: Unrecognized character '' at line 80, column 12
+Error: Unrecognized character '' at line 81, column 12
+Error: Unrecognized character '' at line 82, column 12
+Error: Unrecognized character '' at line 83, column 12
+Error: Unrecognized character '' at line 84, column 12
+Error: Unrecognized character '' at line 85, column 13
+Error: Unrecognized character '' at line 86, column 13
+Error: Unrecognized character '' at line 87, column 13
+Error: Unrecognized character '' at line 88, column 13
+Error: Unrecognized character '' at line 89, column 13
+Error: Unrecognized character '' at line 90, column 13
+Error: Unrecognized character '' at line 91, column 13
+Error: Unrecognized character '' at line 92, column 13
+Error: Unrecognized character '' at line 93, column 13
+Error: Unrecognized character '' at line 94, column 13
+Error: Unrecognized character '' at line 95, column 13
+Error: Unrecognized character '' at line 96, column 13
+Error: Unrecognized character '' at line 97, column 13
+Error: Unrecognized character '' at line 98, column 13
+Error: Unrecognized character '' at line 99, column 13
+Error: Unrecognized character '' at line 100, column 13
+Error: Unrecognized character '' at line 101, column 13
+Error: Unrecognized character '' at line 102, column 13
+Error: Unrecognized character '' at line 103, column 13
+Error: Unrecognized character '' at line 104, column 13
+Error: Unrecognized character '' at line 105, column 13
+Error: Unrecognized character '' at line 106, column 13
+Error: Unrecognized character '' at line 107, column 1
+Error: Unrecognized character '' at line 108, column 13
+Error: Unrecognized character '' at line 109, column 13
+Error: Unrecognized character '' at line 110, column 13
+Error: Unrecognized character '' at line 111, column 13
+Error: Unrecognized character '' at line 112, column 13
+Error: Unrecognized character '' at line 113, column 13
+Error: Unrecognized character '' at line 114, column 13
+Error: Unrecognized character '' at line 115, column 13
+Error: Unrecognized character '' at line 116, column 1
+Error: Unrecognized character '' at line 117, column 53
+Error: Unrecognized character '' at line 118, column 16
+Error: Unrecognized character '' at line 119, column 41
+Error: Unrecognized character '' at line 120, column 32
+Error: Unrecognized character '' at line 121, column 30
+Error: Unrecognized character '' at line 122, column 33
+Error: Unrecognized character '' at line 123, column 16
+Error: Unrecognized character '' at line 124, column 37
+Error: Unrecognized character '' at line 125, column 28
+Error: Unrecognized character '' at line 126, column 30
+Error: Unrecognized character '' at line 127, column 32
+Error: Unrecognized character '' at line 128, column 32
+Error: Unrecognized character '' at line 129, column 32
+Error: Unrecognized character '' at line 130, column 32
+Error: Unrecognized character '' at line 131, column 33
+Error: Unrecognized character '' at line 132, column 16
+Error: Unrecognized character '' at line 133, column 25
+Error: Unrecognized character '' at line 134, column 14
+Error: Unrecognized character '' at line 135, column 2
+8
+8
+8
+8
+8
+8
+8
+8
+8
+16
+16
+16
+16
+16
+16
+16
+16
+25
+32
+32
+32
+32
+32
+32
+32
+32
+57
+34
+fail to compile

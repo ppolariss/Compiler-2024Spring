@@ -377,6 +377,8 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         }
     }
 
+    cout << spill_stack.size() << endl;
+
     unordered_set<int> spill_reg = unordered_set<int>();
 
     while (!reg_stack.empty())

@@ -1,0 +1,30 @@
+struct A{
+    a:int
+}
+struct B{
+    a:A
+}
+fn f(a:B)->int{
+    putint(a.a);
+    putint(a.a.a);
+    // putint(a.a.a);
+    // let b:int = a.a.a + 1;
+    // putint(b);
+    ret a.a.a;
+}
+
+fn ff(u:A)->int{
+    // putint(a.a.a);
+    // let b:int = a.a.a + 1;
+    // putint(b);
+    ret u.a;
+}
+
+fn main()->int{
+    let x:B;
+    x.a.a=1;
+    putint(x.a.a);
+    // putint(x.a.a);
+    ret x.a.a;
+    // ret f(x);
+}

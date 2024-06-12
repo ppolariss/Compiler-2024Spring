@@ -1,0 +1,31 @@
+// struct arrary 
+struct next {
+    k8s: int
+}
+
+struct arrary {
+    data: int,
+    next: next // can not contain self
+}
+
+fn add(a:arrary, b:arrary)->int{
+    let c:arrary;
+    putint(a.data);
+    putint(a);
+    // putint(a.data);
+    // putint(b.data);
+    // c.data = a.data + b.data;
+    // putint(c.data);
+    // ret c.data + 1;
+    ret 1;
+}
+
+fn main()->int{
+    let a:arrary;
+    let b:arrary;
+    a.data = 1;
+    b.data = 2;
+    putint(a.data);
+    // putint(a.data);
+    ret add(a, b);
+}
