@@ -131,7 +131,7 @@ void new_frame(list<AS_stm *> &as_list, L_func &func)
     // as_list.emplace_back(AS_Mov(sp, new AS_reg(AS_type::Xn, XnFP)));
     for (int i = 0; i < 8 && i < func.args.size(); i++)
     {
-        cout << func.args.size() << endl;
+        // cout << func.args.size() << endl;
         // TODO
         as_list.push_back(AS_Mov(new AS_reg(AS_type::Xn, paramRegs[i]), new AS_reg(AS_type::Xn, func.args[i]->num)));
     }
@@ -416,6 +416,7 @@ void llvm2asmGep(list<AS_stm *> &as_list, L_stm *gep_stm)
 
     // idx
     AS_reg *idx = nullptr;
+    int const_idx = 0;
     switch (gep_stm->u.GEP->index->kind)
     {
     case OperandKind::TEMP:
@@ -428,13 +429,16 @@ void llvm2asmGep(list<AS_stm *> &as_list, L_stm *gep_stm)
     }
     break;
     case OperandKind::ICONST:
+    {
         idx = fuckImm(as_list, gep_stm->u.GEP->index->u.ICONST);
-        // {
-        //     // idx = new AS_reg(AS_type::IMM, gep_stm->u.GEP->index->u.ICONST);
-        //     idx = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
-        //     as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, gep_stm->u.GEP->index->u.ICONST), idx));
-        // }
-        break;
+        const_idx = gep_stm->u.GEP->index->u.ICONST;
+    }
+    // {
+    //     // idx = new AS_reg(AS_type::IMM, gep_stm->u.GEP->index->u.ICONST);
+    //     idx = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
+    //     as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, gep_stm->u.GEP->index->u.ICONST), idx));
+    // }
+    break;
     default:
         assert(0);
         break;
@@ -442,15 +446,55 @@ void llvm2asmGep(list<AS_stm *> &as_list, L_stm *gep_stm)
     assert(idx);
 
     // calculate
-    assert(gep_stm->u.GEP->new_ptr->kind == OperandKind::TEMP);
-    assert(gep_stm->u.GEP->new_ptr->u.TEMP->type == TempType::INT_PTR || gep_stm->u.GEP->new_ptr->u.TEMP->type == TempType::STRUCT_PTR);
-    AS_reg *imm_reg = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
-    if (gep_stm->u.GEP->new_ptr->u.TEMP->type == TempType::STRUCT_PTR)
-        as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, structLayout[gep_stm->u.GEP->new_ptr->u.TEMP->structname]->size), imm_reg));
-    else
-        as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, INT_LENGTH), imm_reg));
+    // AS_reg *imm_reg = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
+    // if (gep_stm->u.GEP->new_ptr->u.TEMP->type == TempType::STRUCT_PTR)
+    // {
+    //     as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, structLayout[gep_stm->u.GEP->new_ptr->u.TEMP->structname]->size), imm_reg));
+    //     cout << 1 << endl;
+    // }
+    // else
+    // {
+    //     as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, INT_LENGTH), imm_reg));
+    //     cout << 2 << endl;
+    // }
+    // AS_reg *new_reg = new AS_reg(AS_type::Xn, gep_stm->u.GEP->new_ptr->u.TEMP->num);
+    // as_list.push_back(AS_Binop(AS_binopkind::MUL_, idx, imm_reg, new_reg));
+    // as_list.push_back(AS_Binop(AS_binopkind::ADD_, base_ptr, new_reg, new_reg));
+    // assert(gep_stm->u.GEP->base_ptr->kind == OperandKind::TEMP);
     AS_reg *new_reg = new AS_reg(AS_type::Xn, gep_stm->u.GEP->new_ptr->u.TEMP->num);
-    as_list.push_back(AS_Binop(AS_binopkind::MUL_, idx, imm_reg, new_reg));
+    if (gep_stm->u.GEP->base_ptr->kind == OperandKind::TEMP && gep_stm->u.GEP->base_ptr->u.TEMP->type == TempType::STRUCT_PTR && gep_stm->u.GEP->base_ptr->u.TEMP->len == 0)
+    {
+        assert(gep_stm->u.GEP->index->kind == OperandKind::ICONST);
+        assert(structLayout[gep_stm->u.GEP->base_ptr->u.TEMP->structname]);
+        // auto t = structLayout[gep_stm->u.GEP->base_ptr->u.TEMP->structname];
+        // cout << (structLayout[gep_stm->u.GEP->base_ptr->u.TEMP->structname]->offset.size() > const_idx) << endl;
+        // cout << int(structLayout[gep_stm->u.GEP->base_ptr->u.TEMP->structname]->offset.size()) << " " << const_idx << endl;
+        assert(int(structLayout[gep_stm->u.GEP->base_ptr->u.TEMP->structname]->offset.size()) > const_idx);
+        // structLayout[gep_stm->u.GEP->new_ptr->u.TEMP->structname]->size
+        as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, structLayout[gep_stm->u.GEP->base_ptr->u.TEMP->structname]->offset[const_idx]), new_reg));
+        cout << 1 << endl;
+    }
+    else if (gep_stm->u.GEP->base_ptr->kind == OperandKind::NAME && gep_stm->u.GEP->base_ptr->u.NAME->type == TempType::STRUCT_TEMP)
+    {
+        assert(gep_stm->u.GEP->index->kind == OperandKind::ICONST);
+        assert(structLayout[gep_stm->u.GEP->base_ptr->u.NAME->structname]);
+        assert(int(structLayout[gep_stm->u.GEP->base_ptr->u.NAME->structname]->offset.size()) > const_idx);
+        as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, structLayout[gep_stm->u.GEP->base_ptr->u.NAME->structname]->offset[const_idx]), new_reg));
+        cout << 2 << endl;
+    }
+    else
+    {
+        assert(gep_stm->u.GEP->new_ptr->kind == OperandKind::TEMP);
+        AS_reg *imm_reg = new AS_reg(AS_type::Xn, Temp_newtemp_int()->num);
+        if (gep_stm->u.GEP->new_ptr->u.TEMP->type == TempType::STRUCT_PTR)
+            as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, structLayout[gep_stm->u.GEP->new_ptr->u.TEMP->structname]->size), imm_reg));
+        else if (gep_stm->u.GEP->new_ptr->u.TEMP->type == TempType::INT_PTR)
+            as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, INT_LENGTH), imm_reg));
+        else
+            assert(0);
+        as_list.push_back(AS_Binop(AS_binopkind::MUL_, idx, imm_reg, new_reg));
+        cout << 3 << endl;
+    }
     as_list.push_back(AS_Binop(AS_binopkind::ADD_, base_ptr, new_reg, new_reg));
     // as_list.push_back(AS_Mov(base_ptr, new AS_reg(AS_type::Xn, gep_stm->u.GEP->new_ptr->u.TEMP->num)));
     // as_list.push_back(AS_Ldr(new AS_reg(AS_type::Xn, gep_stm->u.GEP->new_ptr->u.TEMP->num), new AS_reg(AS_type::ADR, new AS_address(base_ptr, 0))));
@@ -834,6 +878,7 @@ void llvm2asmGlobal(vector<AS_global *> &globals, L_def &def)
             // globals.push_back(new AS_global(new AS_label(def.u.GLOBAL->name), def.u.GLOBAL->init[i], INT_LENGTH));
             // }
             globals.push_back(new AS_global(new AS_label(def.u.GLOBAL->name), 0, layout->size));
+            // cout << layout->size << endl;
         }
         break;
         case TempType::INT_TEMP:
