@@ -12,6 +12,22 @@ using namespace GRAPH;
 stack<Node<RegInfo> *> reg_stack;
 const int k = 8; // 8-15
 const int START_REG = 8;
+
+int nextXXn = XXn1;
+int getNextXXn()
+{
+    int temp = nextXXn;
+    if (nextXXn == XXn4)
+        nextXXn = XXn1;
+    else
+        nextXXn++;
+    return temp;
+}
+int getNextColor(int color)
+{
+    return color == START_REG + k - 1 ? START_REG : color + 1;
+}
+
 void getAllRegs(AS_stm *stm, vector<AS_reg *> &defs, vector<AS_reg *> &uses)
 {
     switch (stm->type)
@@ -303,6 +319,7 @@ void init(std::list<InstructionNode *> &nodes, unordered_map<int, Node<RegInfo> 
         it++;
     }
 }
+
 void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm *> &as_list)
 {
     Graph<RegInfo> interferenceGraph;
@@ -364,7 +381,7 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
             // info->info.is_spill = true;
             info->info.bit_map = true;
             // reg_stack.push(info);
-            spill_stack.push(info);
+            reg_stack.push(info);
             GRAPH::NodeSet *nodeSet = info->succ();
             for (auto it = nodeSet->begin(); it != nodeSet->end(); ++it)
                 interferenceGraph.mynodes[*it]->info.degree--;
@@ -377,7 +394,7 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         }
     }
 
-    cout << spill_stack.size() << endl;
+    cout << "reg_stack" << reg_stack.size() << endl;
 
     unordered_set<int> spill_reg = unordered_set<int>();
 
@@ -412,7 +429,32 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
                 // }
             }
         }
-
+        assert(colour < START_REG + k);
+        info->info.color = colour;
+    }
+    while (!spill_stack.empty())
+    {
+        Node<RegInfo> *info = spill_stack.top();
+        spill_stack.pop();
+        GRAPH::NodeSet *nodeSet = info->succ();
+        int colour = START_REG;
+        bool flag = true;
+        while (flag)
+        {
+            flag = false;
+            for (auto it = nodeSet->begin(); it != nodeSet->end(); ++it)
+            {
+                // cout << *it << " " << colour << " " << regNodes[*it] << " " << endl;
+                // if (regNodes[*it])
+                //     cout << "regNodes[*it]->info.color" << endl;
+                if (interferenceGraph.mynodes[*it] && interferenceGraph.mynodes[*it]->info.color == colour)
+                {
+                    colour++;
+                    flag = true;
+                    break;
+                }
+            }
+        }
         if (colour >= START_REG + k)
         {
             spill_reg.insert(info->info.regNum);
@@ -429,35 +471,67 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
 
         //         regNodes[*it]->info.color++;
     }
-    // cout << spill_reg.size() << endl;
-    // cout << "regNodes.size():" << regNodes.size() << endl;
-    for (AS_stm *list : as_list)
+    cout << "spill_reg" << spill_reg.size() << endl;
+
+    int totalOffset = spill_reg.size() * INT_LENGTH;
+    unordered_map<int, AS_address *> spillOffset;
+    int currOffset = totalOffset - INT_LENGTH;
+    for (auto reg : spill_reg)
     {
+        spillOffset[reg] = new AS_address(new AS_reg(AS_type::SP, 0), currOffset);
+        currOffset -= INT_LENGTH;
+    }
+    assert(currOffset == -INT_LENGTH);
+    as_list.push_back(AS_Binop(AS_binopkind::SUB_, new AS_reg(AS_type::SP, -1), new AS_reg(AS_type::IMM, totalOffset), new AS_reg(AS_type::SP, -1)));
+
+    // cout << "regNodes.size():" << regNodes.size() << endl;
+    for (auto it = as_list.begin(); it != as_list.end(); it++)
+    // AS_stm *list : as_list)
+    {
+        auto list = *it;
         vector<AS_reg *> defs;
         vector<AS_reg *> uses;
         getAllRegs(list, defs, uses);
         for (AS_reg *def : defs)
         {
-            if (def->type == AS_type::Xn)
+            if (def->type == AS_type::Xn && def->u.offset >= 100)
             {
-                if (def->u.offset >= 100)
+                if (spill_reg.find(def->u.offset) != spill_reg.end())
                 {
+                    int originOffset = def->u.offset;
+                    int xxn = getNextXXn();
+                    def->u.offset = xxn;
+                    // spill
+                    as_list.insert(next(it), AS_Str(new AS_reg(AS_type::Xn, xxn), new AS_reg(AS_type::ADR, spillOffset[originOffset])));
+                }
+                else
+                {
+                    // not spill
                     // Node<RegInfo> *node = interferenceGraph.mynodes[def->u.offset];
                     Node<RegInfo> *node = regNodes[def->u.offset];
-                    // if (node && def->u.offset >= 100)
-                    if (node)
-                        def->u.offset = node->info.color;
+                    assert(node);
+                    def->u.offset = node->info.color;
                 }
             }
         }
         for (AS_reg *use : uses)
         {
-            if (use->type == AS_type::Xn)
+            if (use->type == AS_type::Xn && use->u.offset >= 100)
             {
-                // Node<RegInfo> *node = interferenceGraph.mynodes[use->u.offset];
-                Node<RegInfo> *node = regNodes[use->u.offset];
-                if (node && use->u.offset >= 100)
+                if (spill_reg.find(use->u.offset) != spill_reg.end())
+                {
+                    int originOffset = use->u.offset;
+                    int xxn = getNextXXn();
+                    use->u.offset = xxn;
+                    as_list.insert(it, AS_Ldr(new AS_reg(AS_type::Xn, xxn), new AS_reg(AS_type::ADR, spillOffset[originOffset])));
+                }
+                else
+                {
+                    // Node<RegInfo> *node = interferenceGraph.mynodes[use->u.offset];
+                    Node<RegInfo> *node = regNodes[use->u.offset];
+                    assert(node);
                     use->u.offset = node->info.color;
+                }
             }
         }
     }
