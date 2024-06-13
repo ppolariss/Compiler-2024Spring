@@ -23,10 +23,10 @@ int getNextXXn()
         nextXXn++;
     return temp;
 }
-int getNextColor(int color)
-{
-    return color == START_REG + k - 1 ? START_REG : color + 1;
-}
+// int getNextColor(int color)
+// {
+//     return color == START_REG + k - 1 ? START_REG : color + 1;
+// }
 
 void getAllRegs(AS_stm *stm, vector<AS_reg *> &defs, vector<AS_reg *> &uses)
 {
@@ -381,7 +381,7 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
             // info->info.is_spill = true;
             info->info.bit_map = true;
             // reg_stack.push(info);
-            reg_stack.push(info);
+            spill_stack.push(info);
             GRAPH::NodeSet *nodeSet = info->succ();
             for (auto it = nodeSet->begin(); it != nodeSet->end(); ++it)
                 interferenceGraph.mynodes[*it]->info.degree--;
@@ -395,6 +395,7 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
     }
 
     cout << "reg_stack" << reg_stack.size() << endl;
+    cout << "spill_stack" << spill_stack.size() << endl;
 
     unordered_set<int> spill_reg = unordered_set<int>();
 
@@ -404,10 +405,10 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         reg_stack.pop();
         GRAPH::NodeSet *nodeSet = info->succ();
         int colour = START_REG;
-        bool flag = true;
-        while (flag)
+        bool conflict = true;
+        while (conflict)
         {
-            flag = false;
+            conflict = false;
             for (auto it = nodeSet->begin(); it != nodeSet->end(); ++it)
             {
                 // cout << *it << " " << colour << " " << regNodes[*it] << " " << endl;
@@ -416,7 +417,7 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
                 if (interferenceGraph.mynodes[*it] && interferenceGraph.mynodes[*it]->info.color == colour)
                 {
                     colour++;
-                    flag = true;
+                    conflict = true;
                     break;
                 }
                 // if (regNodes[*it] && regNodes[*it]->info.color == colour)
@@ -424,7 +425,7 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
                 //     cout << *it << " " << colour << endl;
                 //     cout << "yes" << endl;
                 //     colour++;
-                //     flag = true;
+                //     conflict = true;
                 //     break;
                 // }
             }
@@ -438,10 +439,10 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         spill_stack.pop();
         GRAPH::NodeSet *nodeSet = info->succ();
         int colour = START_REG;
-        bool flag = true;
-        while (flag)
+        bool conflict = true;
+        while (conflict)
         {
-            flag = false;
+            conflict = false;
             for (auto it = nodeSet->begin(); it != nodeSet->end(); ++it)
             {
                 // cout << *it << " " << colour << " " << regNodes[*it] << " " << endl;
@@ -450,7 +451,7 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
                 if (interferenceGraph.mynodes[*it] && interferenceGraph.mynodes[*it]->info.color == colour)
                 {
                     colour++;
-                    flag = true;
+                    conflict = true;
                     break;
                 }
             }
