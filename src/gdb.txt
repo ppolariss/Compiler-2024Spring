@@ -1,0 +1,22 @@
+target remote localhost:1234
+break main
+continue
+
+finish
+
+stepi
+
+
+info registers
+print $x9
+
+
+x/10i $pc
+
+x/20x $sp
+
+x /4xw 0x5501819078
+x /30xw 0x5501819040
+
+
+break *0x5500000a00

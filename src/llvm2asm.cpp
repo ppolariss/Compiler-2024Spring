@@ -736,6 +736,8 @@ AS_func *llvm2asmFunc(L_func &func)
         oss << x.first << ":" << printAS_add(x.second).c_str() << endl;
         p->stms.push_back(AS_Llvmir(oss.str()));
     }
+    AS_reg *new_reg = fuckImm(p->stms, stack_frame);
+    p->stms.push_back(AS_Binop(AS_binopkind::SUB_, new AS_reg(AS_type::SP, -1), new_reg, new AS_reg(AS_type::SP, -1)));
     string temp_label = "";
     for (const auto &block : func.blocks)
     {
