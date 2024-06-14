@@ -10,7 +10,7 @@ using namespace GRAPH;
 #include <iostream>
 #include "printASM.h"
 stack<Node<RegInfo> *> reg_stack;
-const int k = 8; // 8-15
+const int k = allocateRegs.size(); // 8-15
 const int START_REG = 8;
 
 int nextXXn = XXn1;
@@ -320,6 +320,118 @@ void init(std::list<InstructionNode *> &nodes, unordered_map<int, Node<RegInfo> 
     }
 }
 
+void replaceInAUse(ASM::AS_stm *list, int old, AS_reg *new_reg)
+{
+    switch (list->type)
+    {
+    case AS_stmkind::BINOP:
+        if (list->u.BINOP->left->u.offset == old)
+        {
+            list->u.BINOP->left = new_reg;
+        }
+        if (list->u.BINOP->right->u.offset == old)
+        {
+            list->u.BINOP->right = new_reg;
+        }
+        break;
+    case AS_stmkind::MOV:
+        if (list->u.MOV->src->u.offset == old)
+        {
+            list->u.MOV->src = new_reg;
+        }
+        break;
+    case AS_stmkind::LDR:
+    {
+        if (list->u.LDR->ptr->u.offset == old)
+        {
+            list->u.LDR->ptr = new_reg;
+        }
+        if (list->u.LDR->ptr->type == AS_type::ADR)
+        {
+            if (list->u.LDR->ptr->u.add->base->u.offset == old)
+            {
+                list->u.LDR->ptr->u.add->base = new_reg;
+            }
+        }
+    }
+    break;
+    case AS_stmkind::STR:
+    {
+        if (list->u.STR->src->u.offset == old)
+        {
+            list->u.STR->src = new_reg;
+        }
+        if (list->u.STR->ptr->u.offset == old)
+        {
+            list->u.STR->ptr = new_reg;
+        }
+        if (list->u.STR->ptr->type == AS_type::ADR)
+        {
+            if (list->u.STR->ptr->u.add->base->u.offset == old)
+            {
+                list->u.STR->ptr->u.add->base = new_reg;
+            }
+            //         // if (list->u.STR->ptr->u.add->reg->u.offset == old)
+            //         // {
+            //         //     list->u.STR->ptr->u.add->reg = new_reg;
+            //         // }
+        }
+    }
+    break;
+    case AS_stmkind::CMP:
+        if (list->u.CMP->left->u.offset == old)
+        {
+            list->u.CMP->left = new_reg;
+        }
+        if (list->u.CMP->right->u.offset == old)
+        {
+            list->u.CMP->right = new_reg;
+        }
+        break;
+    case AS_stmkind::ADR:
+        break;
+    default:
+        break;
+    }
+}
+
+void replaceInADef(ASM::AS_stm *list, int old, AS_reg *new_reg)
+{
+    switch (list->type)
+    {
+    case AS_stmkind::BINOP:
+        if (list->u.BINOP->dst->u.offset == old)
+        {
+            list->u.BINOP->dst = new_reg;
+        }
+        break;
+    case AS_stmkind::MOV:
+        if (list->u.MOV->dst->u.offset == old)
+        {
+            list->u.MOV->dst = new_reg;
+        }
+        break;
+    case AS_stmkind::LDR:
+        if (list->u.LDR->dst->u.offset == old)
+        {
+            list->u.LDR->dst = new_reg;
+        }
+        break;
+    case AS_stmkind::STR:
+        break;
+    case AS_stmkind::CMP:
+        break;
+    case AS_stmkind::ADR:
+        if (list->u.ADR->reg->u.offset == old)
+        {
+            list->u.ADR->reg = new_reg;
+        }
+        break;
+    default:
+        break;
+    }
+}
+
 void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm *> &as_list)
 {
     Graph<RegInfo> interferenceGraph;
@@ -483,7 +595,17 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         currOffset -= INT_LENGTH;
     }
     assert(currOffset == -INT_LENGTH);
-    as_list.push_back(AS_Binop(AS_binopkind::SUB_, new AS_reg(AS_type::SP, -1), new AS_reg(AS_type::IMM, totalOffset), new AS_reg(AS_type::SP, -1)));
+    if (totalOffset)
+    {
+        for (auto it = as_list.begin(); it != as_list.end(); it++)
+        {
+            if ((*it)->type == AS_stmkind::LABEL)
+            {
+                as_list.insert(next(it), AS_Binop(AS_binopkind::SUB_, new AS_reg(AS_type::SP, -1), new AS_reg(AS_type::IMM, totalOffset), new AS_reg(AS_type::SP, -1)));
+                break;
+            }
+        }
+    }
 
     // cout << "regNodes.size():" << regNodes.size() << endl;
     for (auto it = as_list.begin(); it != as_list.end(); it++)
@@ -491,7 +613,9 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
     {
         auto list = *it;
         vector<AS_reg *> defs;
+        // defs.clear();
         vector<AS_reg *> uses;
+        // uses.clear();
         getAllRegs(list, defs, uses);
         for (AS_reg *def : defs)
         {
@@ -501,9 +625,10 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
                 {
                     int originOffset = def->u.offset;
                     int xxn = getNextXXn();
-                    def->u.offset = xxn;
+                    // def->u.offset = xxn;
                     // spill
                     as_list.insert(next(it), AS_Str(new AS_reg(AS_type::Xn, xxn), new AS_reg(AS_type::ADR, spillOffset[originOffset])));
+                    replaceInADef(list, originOffset, new AS_reg(AS_type::Xn, xxn));
                 }
                 else
                 {
@@ -523,8 +648,9 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
                 {
                     int originOffset = use->u.offset;
                     int xxn = getNextXXn();
-                    use->u.offset = xxn;
+                    // use->u.offset = xxn;
                     as_list.insert(it, AS_Ldr(new AS_reg(AS_type::Xn, xxn), new AS_reg(AS_type::ADR, spillOffset[originOffset])));
+                    replaceInAUse(list, originOffset, new AS_reg(AS_type::Xn, xxn));
                 }
                 else
                 {
