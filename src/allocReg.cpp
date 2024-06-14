@@ -506,8 +506,8 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
         }
     }
 
-    cout << "reg_stack" << reg_stack.size() << endl;
-    cout << "spill_stack" << spill_stack.size() << endl;
+    // cout << "reg_stack" << reg_stack.size() << endl;
+    // cout << "spill_stack" << spill_stack.size() << endl;
 
     unordered_set<int> spill_reg = unordered_set<int>();
 
@@ -584,7 +584,7 @@ void livenessAnalysis(std::list<InstructionNode *> &nodes, std::list<ASM::AS_stm
 
         //         regNodes[*it]->info.color++;
     }
-    cout << "spill_reg" << spill_reg.size() << endl;
+    // cout << "spill_reg" << spill_reg.size() << endl;
 
     int totalOffset = spill_reg.size() * INT_LENGTH;
     unordered_map<int, AS_address *> spillOffset;

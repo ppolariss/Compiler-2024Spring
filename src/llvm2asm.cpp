@@ -135,6 +135,13 @@ void new_frame(list<AS_stm *> &as_list, L_func &func)
         // TODO
         as_list.push_back(AS_Mov(new AS_reg(AS_type::Xn, paramRegs[i]), new AS_reg(AS_type::Xn, func.args[i]->num)));
     }
+    for (int i = 8; i < func.args.size(); i++)
+    {
+        // cout << func.args.size() << endl;
+        // TODO
+        as_list.push_back(AS_Ldr(new AS_reg(AS_type::Xn, func.args[i]->num), new AS_reg(AS_type::ADR, new AS_address(new AS_reg(AS_type::Xn, XnFP), (i - 8) * INT_LENGTH))));
+        // new AS_reg(AS_type::SP, -1), INT_LENGTH));
+    }
 }
 
 void free_frame(list<AS_stm *> &as_list)
@@ -472,7 +479,6 @@ void llvm2asmGep(list<AS_stm *> &as_list, L_stm *gep_stm)
         assert(int(structLayout[gep_stm->u.GEP->base_ptr->u.TEMP->structname]->offset.size()) > const_idx);
         // structLayout[gep_stm->u.GEP->new_ptr->u.TEMP->structname]->size
         as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, structLayout[gep_stm->u.GEP->base_ptr->u.TEMP->structname]->offset[const_idx]), new_reg));
-        cout << 1 << endl;
     }
     else if (gep_stm->u.GEP->base_ptr->kind == OperandKind::NAME && gep_stm->u.GEP->base_ptr->u.NAME->type == TempType::STRUCT_TEMP)
     {
@@ -480,7 +486,6 @@ void llvm2asmGep(list<AS_stm *> &as_list, L_stm *gep_stm)
         assert(structLayout[gep_stm->u.GEP->base_ptr->u.NAME->structname]);
         assert(int(structLayout[gep_stm->u.GEP->base_ptr->u.NAME->structname]->offset.size()) > const_idx);
         as_list.push_back(AS_Mov(new AS_reg(AS_type::IMM, structLayout[gep_stm->u.GEP->base_ptr->u.NAME->structname]->offset[const_idx]), new_reg));
-        cout << 2 << endl;
     }
     else
     {
@@ -493,7 +498,6 @@ void llvm2asmGep(list<AS_stm *> &as_list, L_stm *gep_stm)
         else
             assert(0);
         as_list.push_back(AS_Binop(AS_binopkind::MUL_, idx, imm_reg, new_reg));
-        cout << 3 << endl;
     }
     as_list.push_back(AS_Binop(AS_binopkind::ADD_, base_ptr, new_reg, new_reg));
     // as_list.push_back(AS_Mov(base_ptr, new AS_reg(AS_type::Xn, gep_stm->u.GEP->new_ptr->u.TEMP->num)));
@@ -742,11 +746,11 @@ void llvm2asmCall(list<AS_stm *> &as_list, L_stm *call)
     as_list.push_back(AS_Mov(sp, new AS_reg(AS_type::Xn, XnFP)));
 
     as_list.emplace_back(AS_Bl(new AS_label(call->u.CALL->fun)));
+        free_frame(as_list);
     if (call->u.CALL->args.size() > 8)
     {
         as_list.emplace_back(AS_Binop(AS_binopkind::ADD_, sp, new AS_reg(AS_type::IMM, (call->u.CALL->args.size() - 8) * INT_LENGTH), sp));
     }
-    free_frame(as_list);
     load_register(as_list);
     as_list.emplace_back(AS_Mov(new AS_reg(AS_type::Xn, XXnret), new AS_reg(AS_type::Xn, call->u.CALL->res->u.TEMP->num)));
 }
